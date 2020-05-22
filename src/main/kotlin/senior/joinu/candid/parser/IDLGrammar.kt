@@ -34,6 +34,7 @@ class IDLKeyValueNode(val key: IDLAstNode?, val value: IDLAstNode)
 
 object IDLGrammar : Grammar<IDLRootNode>() {
     // -----------------------------PUNCTUATION-------------------------------
+    private val tSLComment by token("//.*?[\r\n]", ignore = true)
     private val tColon by token(":")
     private val tSemicolon by token(";")
     private val tComma by token(",")

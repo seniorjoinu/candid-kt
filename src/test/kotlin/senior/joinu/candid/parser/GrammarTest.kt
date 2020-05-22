@@ -12,6 +12,7 @@ class GrammarTest {
             type my_type = nat8;
             type List = record { head: int; tail: List };
             type f = func (List, func (int32) -> (int64)) -> (opt List);
+            // single line comment
             type broker = service {
               find : (name: text) ->
                 (service {up:() -> (); current:() -> (nat32)});
