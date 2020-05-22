@@ -4,9 +4,6 @@ import com.github.h0tk3y.betterParse.combinators.*
 import com.github.h0tk3y.betterParse.grammar.Grammar
 import com.github.h0tk3y.betterParse.grammar.parser
 import com.github.h0tk3y.betterParse.parser.Parser
-import senior.joinu.candid.parser.IDLGrammar.getValue
-import senior.joinu.candid.parser.IDLGrammar.provideDelegate
-import java.math.BigInteger
 import java.util.regex.Pattern
 
 enum class EIDLAstNodeType {
@@ -78,6 +75,7 @@ object IDLGrammar : Grammar<IDLRootNode>() {
     private val tNull by token("null")
     private val tReserved by token("reserved")
     private val tEmpty by token("empty")
+    private val tBlob by token("blob")
 
     // -----------------------------Nat-------------------------------
     private val tHex by token("0x[0-9a-fA-F][_0-9a-fA-F]*")
@@ -195,9 +193,11 @@ object IDLGrammar : Grammar<IDLRootNode>() {
     // -----------------------------CONSTYPE-------------------------------
     private val pConsType: Parser<IDLAstNode> by parser { pOpt } or parser { pVec } or parser { pRecord } or parser { pVariant } or parser { pBlob }
 
-    private val pBlob: Parser<IDLAstNode> by skip(tVec) and pNat8 use {
-        IDLAstNode(this, EIDLAstNodeType.ConsType, EIDLAstNodeTag.Blob)
-    }
+    private val pBlob: Parser<IDLAstNode> by tBlob asJust IDLAstNode(
+        null,
+        EIDLAstNodeType.ConsType,
+        EIDLAstNodeTag.Blob
+    )
 
     private val pOpt: Parser<IDLAstNode> by skip(tOpt) and pDataType use {
         IDLAstNode(this, EIDLAstNodeType.ConsType, EIDLAstNodeTag.Opt)
