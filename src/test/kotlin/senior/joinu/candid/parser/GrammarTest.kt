@@ -30,7 +30,8 @@ class GrammarTest {
 
         println(ir)
 
-        val kt = IRToKtTranspiler.transpile(ir)
+        val ktTranspiler = IRToKtTranspiler("", "TestCandid.kt")
+        val kt = ktTranspiler.transpile(ir)
         kt.writeTo(System.out)
     }
 }

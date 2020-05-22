@@ -1,9 +1,8 @@
 package senior.joinu.candid.transpiler.kt
 
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import senior.joinu.candid.parser.*
-import java.lang.RuntimeException
 import java.math.BigInteger
 import kotlin.reflect.KClass
 
@@ -11,21 +10,27 @@ interface IRTranspiler<T> {
     fun transpile(program: IDLIRProgram): T
 }
 
-object IRToKtTranspiler : IRTranspiler<FileSpec> {
-    private var currentSpec = FileSpec.builder("", "Example.kt")
-    private var anonymousTypeCount = 0
+class IRToKtTranspiler(val resultPackageName: String, val resultFileName: String) : IRTranspiler<FileSpec> {
+    var currentSpec: FileSpec.Builder = FileSpec.builder(resultPackageName, "$resultFileName.kt")
+    var anonymousTypeCount = 0
+    private var used = false
 
-    private fun nextAnonymousTypeName(`package`: String = "")
-            = ClassName(`package`, "AnonIDLType${anonymousTypeCount++}")
+    private fun nextAnonymousTypeName(`package`: String = resultPackageName) =
+        ClassName(`package`, "AnonIDLType${anonymousTypeCount++}")
 
-    private fun nextAnonymousFuncTypeName(`package`: String = "")
-            = ClassName(`package`, "AnonFunc${anonymousTypeCount++}")
+    private fun nextAnonymousFuncTypeName(`package`: String = resultPackageName) =
+        ClassName(`package`, "AnonFunc${anonymousTypeCount++}")
 
-    private fun createResultValueTypeName(funcName: String, `package`: String = "")
-            = ClassName(`package`, "${funcName.capitalize()}Result")
+    private fun createResultValueTypeName(funcName: String, `package`: String = resultPackageName) =
+        ClassName(`package`, "${funcName.capitalize()}Result")
 
     override fun transpile(program: IDLIRProgram): FileSpec {
-        program.importDefinitions.forEach { transpileImportDef(it) }
+        require(!used) { "Transpiler instance was already used!" }
+
+        program.importDefinitions.forEach {
+            transpileImportDef(it)
+        }
+
         program.typeDefinitions.forEach {
             val typeName = transpileTypeDef(it.description)
 
@@ -33,11 +38,19 @@ object IRToKtTranspiler : IRTranspiler<FileSpec> {
             currentSpec.addTypeAlias(typeAlias)
         }
 
+        if (program.actor != null) {
+            val actorName = program.actor.name ?: "${resultFileName}MainActor"
+            val actorTypeDef = program.actor.type
+
+            transpileActorTypeDef(actorTypeDef, ClassName(resultPackageName, actorName))
+        }
+
+        used = true
         return currentSpec.build()
     }
 
-    fun transpileImportDef(def: IDLImportDefinition): String {
-        return ""
+    // TODO: enable imports
+    fun transpileImportDef(def: IDLImportDefinition) {
     }
 
     fun transpileTypeDef(description: IDLTypeDescription): TypeName {
@@ -50,7 +63,7 @@ object IRToKtTranspiler : IRTranspiler<FileSpec> {
             EIDLDescriptionTypeKind.Id -> {
                 val type = description as IDLIdType
 
-                ClassName("", type.id)
+                ClassName(resultPackageName, type.id)
             }
             EIDLDescriptionTypeKind.ReferenceType -> {
                 val ref = description as IDLReferenceType
@@ -67,28 +80,7 @@ object IRToKtTranspiler : IRTranspiler<FileSpec> {
                             EIDLReferenceKind.Actor -> {
                                 val actorDef = innerDescription as IDLActorTypeDefinition
 
-                                val actorClassName = nextAnonymousTypeName()
-                                val actorClassBuilder = TypeSpec.classBuilder(actorClassName)
-
-                                for (method in actorDef.methods) {
-                                    when (method.description.methodDescriptionKind) {
-                                        EIDLActorMethodTypeKind.Id -> {
-                                            val idDescription = method.description as IDLIdType
-                                            val idClass = ClassName("", idDescription.id)
-                                            actorClassBuilder.addProperty(method.name, idClass)
-                                        }
-                                        EIDLActorMethodTypeKind.Signature -> {
-                                            val funcDescription = method.description as IDLFunctionDefinition
-                                            val funcName = transpileFuncTypeDef(funcDescription)
-                                            actorClassBuilder.addProperty(method.name, funcName)
-                                        }
-                                    }
-                                }
-
-                                val actorClass = actorClassBuilder.build()
-                                currentSpec.addType(actorClass)
-
-                                actorClassName
+                                transpileActorTypeDef(actorDef, null)
                             }
                         }
                     }
@@ -114,12 +106,35 @@ object IRToKtTranspiler : IRTranspiler<FileSpec> {
                     }
                     EIDLConstructiveTypeKind.Variant -> {
                         val variantName = nextAnonymousTypeName()
-                        val variantBuilder = TypeSpec.enumBuilder(variantName)
 
                         val fields = cons.description as IDLFieldList
-                        for (field in fields.value) {
-                            val fieldName = field.getName()
-                            variantBuilder.addEnumConstant(fieldName)
+                        val variantBuilder = if (fields.value.isEmpty()) {
+                            TypeSpec.objectBuilder(variantName)
+                        } else {
+                            val variantBuilder = TypeSpec.classBuilder(variantName).addModifiers(KModifier.SEALED)
+                            for (field in fields.value) {
+                                val fieldName = field.getName()
+                                val fieldType = transpileTypeDef(field.type)
+
+                                val property = PropertySpec
+                                    .builder("value", fieldType)
+                                    .initializer("value")
+                                    .build()
+                                val constructor = FunSpec
+                                    .constructorBuilder()
+                                    .addParameter("value", fieldType)
+                                    .build()
+                                val sealedSubclass = TypeSpec
+                                    .classBuilder(fieldName)
+                                    .addModifiers(KModifier.DATA)
+                                    .superclass(variantName)
+                                    .addProperty(property)
+                                    .primaryConstructor(constructor)
+                                    .build()
+
+                                variantBuilder.addType(sealedSubclass)
+                            }
+                            variantBuilder
                         }
 
                         val variant = variantBuilder.build()
@@ -128,33 +143,69 @@ object IRToKtTranspiler : IRTranspiler<FileSpec> {
                         variantName
                     }
                     EIDLConstructiveTypeKind.Record -> {
-                        val dataClassName = nextAnonymousTypeName()
-                        val dataClassBuilder = TypeSpec.classBuilder(dataClassName).addModifiers(KModifier.DATA)
-
-                        val constructorBuilder = FunSpec.constructorBuilder()
+                        val recordName = nextAnonymousTypeName()
                         val fields = cons.description as IDLFieldList
-                        for (field in fields.value) {
-                            val fieldName = field.getName()
-                            val fieldTypeName = transpileTypeDef(field.type)
+                        val recordBuilder = if (fields.value.isEmpty()) {
+                            TypeSpec.objectBuilder(recordName)
+                        } else {
+                            val dataClassBuilder = TypeSpec.classBuilder(recordName).addModifiers(KModifier.DATA)
+                            val constructorBuilder = FunSpec.constructorBuilder()
+                            for (field in fields.value) {
+                                val fieldName = field.getName()
+                                val fieldTypeName = transpileTypeDef(field.type)
 
-                            constructorBuilder.addParameter(fieldName, fieldTypeName)
+                                constructorBuilder.addParameter(fieldName, fieldTypeName)
 
-                            val propertyBuilder = PropertySpec
-                                .builder(fieldName, fieldTypeName)
-                                .initializer(fieldName)
-                                .build()
-                            dataClassBuilder.addProperty(propertyBuilder)
+                                val propertyBuilder = PropertySpec
+                                    .builder(fieldName, fieldTypeName)
+                                    .initializer(fieldName)
+                                    .build()
+                                dataClassBuilder.addProperty(propertyBuilder)
+                            }
+
+                            dataClassBuilder.primaryConstructor(constructorBuilder.build())
                         }
 
-                        dataClassBuilder.primaryConstructor(constructorBuilder.build())
-                        val dataClass = dataClassBuilder.build()
-                        currentSpec.addType(dataClass)
+                        val record = recordBuilder.build()
+                        currentSpec.addType(record)
 
-                        dataClassName
+                        recordName
                     }
                 }
             }
         }
+    }
+
+    fun transpileActorTypeDef(description: IDLActorTypeDefinition, name: ClassName?): TypeName {
+        val actorClassName = name ?: nextAnonymousTypeName()
+
+        val actorClassBuilder = if (description.methods.isEmpty()) {
+            TypeSpec.objectBuilder(actorClassName)
+        } else {
+            val actorClassBuilder = TypeSpec.classBuilder(actorClassName)
+
+            for (method in description.methods) {
+                when (method.description.methodDescriptionKind) {
+                    EIDLActorMethodTypeKind.Id -> {
+                        val idDescription = method.description as IDLIdType
+                        val idClass = ClassName(resultPackageName, idDescription.id)
+                        actorClassBuilder.addProperty(method.name, idClass)
+                    }
+                    EIDLActorMethodTypeKind.Signature -> {
+                        val funcDescription = method.description as IDLFunctionDefinition
+                        val funcName = transpileFuncTypeDef(funcDescription)
+                        actorClassBuilder.addProperty(method.name, funcName)
+                    }
+                }
+            }
+
+            actorClassBuilder
+        }
+
+        val actorClass = actorClassBuilder.build()
+        currentSpec.addType(actorClass)
+
+        return actorClassName
     }
 
     fun transpileFuncTypeDef(description: IDLFunctionDefinition): TypeName {
