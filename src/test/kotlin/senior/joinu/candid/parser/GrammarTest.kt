@@ -2,7 +2,7 @@ package senior.joinu.candid.parser
 
 import com.github.h0tk3y.betterParse.grammar.parseToEnd
 import org.junit.jupiter.api.Test
-import senior.joinu.candid.transpiler.kt.IRToKtTranspiler
+import senior.joinu.candid.IDLGrammar
 
 class GrammarTest {
     @Test
@@ -27,13 +27,8 @@ class GrammarTest {
         """.trimIndent()
 
         val ast = IDLGrammar.parseToEnd(testCandid)
-        val ir = AstToIRCompiler.compile(ast)
 
-        println(ir)
-
-        val ktTranspiler = IRToKtTranspiler("", "TestCandid.kt")
-        val kt = ktTranspiler.transpile(ir)
-        kt.writeTo(System.out)
+        println(ast)
     }
 }
 

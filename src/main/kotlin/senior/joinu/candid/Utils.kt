@@ -1,8 +1,9 @@
 package senior.joinu.candid
 
-import senior.joinu.leb128.Leb128
 import java.math.BigInteger
 import java.nio.ByteBuffer
+import java.util.*
+
 
 val twoPowThirtyTwo: BigInteger = BigInteger.valueOf(2).pow(32)
 
@@ -14,37 +15,48 @@ fun idlHash(id: String): BigInteger {
     return result.mod(twoPowThirtyTwo)
 }
 
-enum class EIDLType(val value: Int) {
-    Null(-1),
-    Bool(-2),
-    Natural(-3),
-    Integer(-4),
-    Nat8(-5),
-    Nat16(-6),
-    Nat32(-7),
-    Nat64(-8),
-    Int8(-9),
-    Int16(-10),
-    Int32(-11),
-    Int64(-12),
-    Float32(-13),
-    Float64(-14),
-    Text(-15),
-    Reserved(-16),
-    Empty(-17),
-    Opt(-18),
-    Vec(-19),
-    Record(-20),
-    Variant(-21),
-    Func(-22),
-    Service(-23),
-    Principal(-24)
+/*
+    ByteBuffer should be set to little endian
+    buf.order(ByteOrder.LITTLE_ENDIAN)
+ */
+object IDLSerialize {
+    fun magicToken(buf: ByteBuffer) {
+        buf
+            .putChar('D')
+            .putChar('I')
+            .putChar('D')
+            .putChar('L')
+    }
 }
 
-fun idlSerializeTypeTag(buf: ByteBuffer, value: EIDLType) {
-    Leb128.writeSignedLeb128(buf, value.value)
+
+fun BigInteger.reverseOrder() = BigInteger(this.toBytesLE())
+
+fun BigInteger.toBytesLE(): ByteArray {
+    return this.toByteArray().reversedArray()
 }
 
-fun idlSerializeNat(buf: ByteBuffer, value: BigInteger) {
+fun BigInteger.toUBytesLE(): ByteArray {
+    val extractedBytes = this.toUBytes()
+    return extractedBytes.reversedArray()
+}
 
+fun BigInteger.toUBytes(): ByteArray {
+    var extractedBytes = this.toByteArray()
+    var skipped = 0
+    var skip = true
+    for (b in extractedBytes) {
+        val signByte = b == 0x00.toByte()
+        if (skip && signByte) {
+            skipped++
+            continue
+        } else if (skip) {
+            skip = false
+        }
+    }
+    extractedBytes = Arrays.copyOfRange(
+        extractedBytes, skipped,
+        extractedBytes.size
+    )
+    return extractedBytes
 }

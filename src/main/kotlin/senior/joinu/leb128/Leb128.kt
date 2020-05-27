@@ -1,38 +1,20 @@
-/*
- * Copyright (C) 2008 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package senior.joinu.leb128
 
-import java.lang.RuntimeException
+import senior.joinu.candid.reverseOrder
+import senior.joinu.candid.toBytesLE
+import senior.joinu.candid.toUBytesLE
+import java.math.BigInteger
 import java.nio.ByteBuffer
+import kotlin.experimental.and
+import kotlin.experimental.or
 
 
-/**
- * Reads and writes DWARFv3 LEB 128 signed and unsigned integers. See DWARF v3
- * section 7.6.
- */
+const val nineBits = 0xff
+const val eightBits = 0x80
+const val sevenBits = 0x7f
+
 object Leb128 {
-    /**
-     * Gets the number of bytes in the unsigned LEB128 encoding of the
-     * given value.
-     *
-     * @param value the value in question
-     * @return its write size, in bytes
-     */
-    fun unsignedLeb128Size(value: Int): Int {
-        // TODO: This could be much cleverer.
+    fun sizeUnsigned(value: Int): Int {
         var remaining = value shr 7
         var count = 0
         while (remaining != 0) {
@@ -42,15 +24,7 @@ object Leb128 {
         return count + 1
     }
 
-    /**
-     * Gets the number of bytes in the signed LEB128 encoding of the
-     * given value.
-     *
-     * @param value the value in question
-     * @return its write size, in bytes
-     */
-    fun signedLeb128Size(value: Int): Int {
-        // TODO: This could be much cleverer.
+    fun sizeSigned(value: Int): Int {
         var value = value
         var remaining = value shr 7
         var count = 0
@@ -66,21 +40,18 @@ object Leb128 {
         return count
     }
 
-    /**
-     * Reads an signed integer from `in`.
-     */
-    fun readSignedLeb128(input: ByteBuffer): Int {
+    fun readSigned(buf: ByteBuffer): Int {
         var result = 0
         var cur: Int
         var count = 0
         var signBits = -1
         do {
-            cur = input.int and 0xff
-            result = result or (cur and 0x7f shl count * 7)
+            cur = buf.int and nineBits
+            result = result or (cur and sevenBits shl count * 7)
             signBits = signBits shl 7
             count++
-        } while (cur and 0x80 == 0x80 && count < 5)
-        if (cur and 0x80 == 0x80) {
+        } while (cur and eightBits == eightBits && count < 5)
+        if (cur and eightBits == eightBits) {
             throw Leb128Exception("invalid LEB128 sequence")
         }
 
@@ -91,52 +62,43 @@ object Leb128 {
         return result
     }
 
-    /**
-     * Reads an unsigned integer from `in`.
-     */
-    fun readUnsignedLeb128(input: ByteBuffer): Int {
-        var result = 0
-        var cur: Int
-        var count = 0
+    fun readUnsigned(buf: ByteBuffer): UInt {
+        var result = 0u
+        var cur: UInt
+        var count = 0u
         do {
-            cur = input.int and 0xff
-            result = result or (cur and 0x7f shl count * 7)
+            cur = buf.int.toUInt() and nineBits.toUInt()
+            result = result or (cur and sevenBits.toUInt() shl (count * 7u).toInt())
             count++
-        } while (cur and 0x80 == 0x80 && count < 5)
-        if (cur and 0x80 == 0x80) {
+        } while (cur and eightBits.toUInt() == eightBits.toUInt() && count < 5u)
+        if (cur and eightBits.toUInt() == eightBits.toUInt()) {
             throw Leb128Exception("invalid LEB128 sequence")
         }
         return result
     }
 
-    /**
-     * Writes `value` as an unsigned integer to `out`, starting at
-     * `offset`. Returns the number of bytes written.
-     */
-    fun writeUnsignedLeb128(out: ByteBuffer, value: Int) {
-        var value = value
-        var remaining = value ushr 7
-        while (remaining != 0) {
-            out.put((value and 0x7f or 0x80).toByte())
+    fun writeUnsigned(buf: ByteBuffer, nat: UInt) {
+        var value = nat
+
+        var remaining = value shr 7
+        while (remaining != 0u) {
+            buf.put((value and sevenBits.toUInt() or eightBits.toUInt()).toByte())
             value = remaining
-            remaining = remaining ushr 7
+            remaining = remaining shr 7
         }
-        out.put((value and 0x7f).toByte())
+        buf.put((value and sevenBits.toUInt()).toByte())
     }
 
-    /**
-     * Writes `value` as a signed integer to `out`, starting at
-     * `offset`. Returns the number of bytes written.
-     */
-    fun writeSignedLeb128(out: ByteBuffer, value: Int) {
-        var value = value
+    fun writeSigned(buf: ByteBuffer, int: Int) {
+        var value = int
+
         var remaining = value shr 7
         var hasMore = true
         val end = if (value and Int.MIN_VALUE == 0) 0 else -1
         while (hasMore) {
             hasMore = (remaining != end
                     || remaining and 1 != value shr 6 and 1)
-            out.put((value and 0x7f or if (hasMore) 0x80 else 0).toByte())
+            buf.put((value and 0x7f or if (hasMore) 0x80 else 0).toByte())
             value = remaining
             remaining = remaining shr 7
         }
@@ -144,3 +106,96 @@ object Leb128 {
 }
 
 class Leb128Exception(m: String) : RuntimeException(m)
+
+
+object Leb128BI {
+    fun writeNat(buf: ByteBuffer, nat: BigInteger) {
+        var value = if (nat < BigInteger.ZERO) nat.negate() else nat
+
+        while (true) {
+            val bigByte = value and BigInteger.valueOf(sevenBits.toLong())
+            var byte = bigByte.toUBytesLE().first()
+
+            value = value shr 7
+
+            if (value != BigInteger.ZERO) {
+                byte = byte or eightBits.toByte()
+            }
+
+            buf.put(byte)
+
+            if (value == BigInteger.ZERO) {
+                break
+            }
+        }
+    }
+
+    fun readNat(buf: ByteBuffer): BigInteger {
+        var result = BigInteger.ZERO
+        var shift = 0
+
+        while (true) {
+            var byte = buf.get()
+            byte = byte and sevenBits.toByte()
+
+            val lowBits = BigInteger(1, ByteArray(1) { byte })
+
+            result = result or (lowBits shl shift)
+
+            if (byte and eightBits.toByte() == 0.toByte()) {
+                return result.reverseOrder()
+            }
+
+            shift += 7
+        }
+    }
+
+    fun writeInt(buf: ByteBuffer, int: BigInteger) {
+        var value = int
+
+        while (true) {
+            val bigByte = int and BigInteger.valueOf(nineBits.toLong())
+            var byte = bigByte.toBytesLE().first()
+
+            value = value shr 6
+
+            val done = value == BigInteger.ZERO || value == BigInteger.valueOf(-1)
+            if (done) {
+                byte = byte and sevenBits.toByte()
+                buf.put(byte)
+
+                break
+            }
+
+            value = value shr 1
+            byte = byte or eightBits.toByte()
+            buf.put(byte)
+        }
+    }
+
+    fun readInt(buf: ByteBuffer): BigInteger {
+        var result = BigInteger.ZERO
+        var shift = 0
+        var byte: Byte
+
+        while (true) {
+            byte = buf.get()
+            byte = byte and sevenBits.toByte()
+
+            val lowBits = BigInteger(ByteArray(1) { byte })
+
+            result = result or (lowBits shl shift)
+            shift += 7
+
+            if (byte and eightBits.toByte() == 0.toByte()) {
+                break
+            }
+        }
+
+        if (shift % 8 != 0 && ((0x40).toByte() and byte) == (0x40).toByte()) {
+            result = result or BigInteger.valueOf(-1) shl shift
+        }
+
+        return result.reverseOrder()
+    }
+}
