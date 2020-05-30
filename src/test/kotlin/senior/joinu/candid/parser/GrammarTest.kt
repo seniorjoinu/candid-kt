@@ -3,6 +3,8 @@ package senior.joinu.candid.parser
 import com.github.h0tk3y.betterParse.grammar.parseToEnd
 import org.junit.jupiter.api.Test
 import senior.joinu.candid.IDLGrammar
+import senior.joinu.candid.IDLType
+import senior.joinu.candid.KtTranspiler
 
 class GrammarTest {
     @Test
@@ -26,9 +28,12 @@ class GrammarTest {
             }
         """.trimIndent()
 
-        val ast = IDLGrammar.parseToEnd(testCandid)
+        val program = IDLGrammar.parseToEnd(testCandid)
+        val kt = KtTranspiler.transpile(program, "", "Test.kt")
 
-        println(ast)
+        kt.writeTo(System.out)
+        println(IDLType.labels)
+        println(IDLType.typeTable.mapIndexed { index, idlType -> "$index: $idlType" })
     }
 }
 

@@ -83,8 +83,6 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pTypeDef by skip(tType) and parser { pId } and skip(
         tAssign
     ) and parser { pDataType } map { (name, type) ->
-        IDLType.addLabeledTypeDefinitionToTable(name, type)
-
         IDLDef.Type(name.value, type)
     }
     private val pImportDef by skip(tImport) and parser { pTextVal } use {
@@ -179,7 +177,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
             parser { pNat } or parser { pNat8 } or parser { pNat16 } or parser { pNat32 } or parser { pNat64 }
                     or parser { pInt } or parser { pInt8 } or parser { pInt16 } or parser { pInt32 } or parser { pInt64 }
                     or parser { pFloat32 } or parser { pFloat64 } or parser { pBool } or parser { pText }
-                    or parser { pNull } or parser { pReserved } or parser { pEmpty } or parser { pBlob }
+                    or parser { pNull } or parser { pReserved } or parser { pEmpty }
             )
 
     private val pNat by tNat asJust IDLType.Primitive.Natural
@@ -203,16 +201,15 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pReserved by tReserved asJust IDLType.Primitive.Reserved
     private val pEmpty by tEmpty asJust IDLType.Primitive.Empty
 
-    private val pBlob by tBlob asJust IDLType.Primitive.Blob
-
     // -----------------------------CONSTYPE-------------------------------
-    private val pConsType: Parser<IDLType.Constructive> by parser { pOpt } or parser { pVec } or parser { pRecord } or parser { pVariant }
+    private val pConsType: Parser<IDLType.Constructive> by parser { pOpt } or parser { pVec } or parser { pBlob } or parser { pRecord } or parser { pVariant }
     private val pOpt by skip(tOpt) and pDataType use {
         IDLType.Constructive.Opt(this)
     }
     private val pVec by skip(tVec) and pDataType use {
         IDLType.Constructive.Vec(this)
     }
+    private val pBlob by tBlob asJust IDLType.Constructive.Blob
     private val pFieldTypeList by zeroOrMore(
         pFieldType and skip(
             optional(
