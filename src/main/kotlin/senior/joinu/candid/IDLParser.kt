@@ -145,7 +145,10 @@ object IDLGrammar : Grammar<IDLProgram>() {
         tColon
     ) and parser { pDataType } map { (name, type) ->
         when (name) {
-            is IDLToken.NatVal.Dec -> IDLFieldType(name.value.toString(), type)
+            is IDLToken.NatVal.Dec -> IDLFieldType(
+                name.value.toString(),
+                type
+            )
             is IDLToken.NatVal.Hex -> IDLFieldType(name.value, type)
         }
     }
@@ -156,12 +159,21 @@ object IDLGrammar : Grammar<IDLProgram>() {
     }
     private val pShortNatNameFieldType: Parser<IDLFieldType> by parser { pNatVal } use {
         when (this) {
-            is IDLToken.NatVal.Dec -> IDLFieldType(value.toString(), IDLType.Primitive.Null)
-            is IDLToken.NatVal.Hex -> IDLFieldType(value, IDLType.Primitive.Null)
+            is IDLToken.NatVal.Dec -> IDLFieldType(
+                value.toString(),
+                IDLType.Primitive.Null
+            )
+            is IDLToken.NatVal.Hex -> IDLFieldType(
+                value,
+                IDLType.Primitive.Null
+            )
         }
     }
     private val pShortStrNameFieldType: Parser<IDLFieldType> by parser { pName } use {
-        IDLFieldType(value, IDLType.Primitive.Null)
+        IDLFieldType(
+            value,
+            IDLType.Primitive.Null
+        )
     }
     private val pShortRecordFieldType: Parser<IDLFieldType> by parser { pDataType } use {
         IDLFieldType(null, this)

@@ -26,3 +26,27 @@ enum class IDLOpcode(val value: Int) {
     SERVICE(-23),
     PRINCIPAL(-24)
 }
+
+sealed class Opcode {
+    data class Integer(val value: Int, val encoding: OpcodeEncoding = OpcodeEncoding.SLEB) : Opcode() {
+        companion object {
+            fun listFrom(value: Int, encoding: OpcodeEncoding = OpcodeEncoding.SLEB) = listOf(
+                Integer(value, encoding)
+            )
+            fun listFrom(opcode: IDLOpcode, encoding: OpcodeEncoding = OpcodeEncoding.SLEB) =
+                listOf(Integer(opcode.value, encoding))
+        }
+    }
+
+    data class Utf8(val value: String, val encoding: OpcodeEncoding) : Opcode() {
+        companion object {
+            fun listFrom(value: String, encoding: OpcodeEncoding = OpcodeEncoding.LEB) = listOf(
+                Utf8(value, encoding)
+            )
+        }
+    }
+}
+
+enum class OpcodeEncoding {
+    LEB, SLEB, BYTE
+}

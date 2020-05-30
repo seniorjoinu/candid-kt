@@ -4,7 +4,6 @@ import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.math.BigInteger
 
-
 sealed class IDLType {
     companion object {
         val typeTable = mutableListOf<IDLType>()
@@ -39,6 +38,31 @@ sealed class IDLType {
             return Opcode.Integer.listFrom(labels[label]!!)
         }
 
+        fun getTypeByLabel(label: Id): IDLType {
+            val id = labels[label]!!
+            return typeTable[id]
+        }
+
+        fun transpileFuncBody(type: IDLType): CodeBlock {
+            return when (type) {
+                is Id -> {
+                    val innerType = getTypeByLabel(type)
+                    return transpileFuncBody(innerType)
+                }
+                is Reference.Func -> {
+                    val argNames = type.arguments
+                        .mapIndexed { index, arg -> arg.name ?: "arg$index" }
+                        .joinToString(postfix = " ->") { it }
+                    CodeBlock.of(
+                        """{ $argNames
+                            |
+                            |}""".trimMargin()
+                    )
+                }
+                else -> CodeBlock.of("")
+            }
+        }
+
         var anonymousTypeCount = 0
 
         private fun nextAnonymousTypeName(`package`: String) =
@@ -55,7 +79,10 @@ sealed class IDLType {
     abstract fun transpile(fileSpec: FileSpec.Builder, packageName: String): TypeName
 
     data class Id(override val value: String) : IDLType(), IDLMethodType, IDLTextToken, IDLActorType {
-        override val opcodeList: List<Opcode> by lazy { getOpcodeListByLabel(Id(value)) }
+        override val opcodeList: List<Opcode> by lazy {
+            getOpcodeListByLabel(Id(value))
+        }
+
         override fun computeOpcodeList() = opcodeList
         override fun transpile(fileSpec: FileSpec.Builder, packageName: String) = ClassName(packageName, value)
     }
@@ -78,12 +105,12 @@ sealed class IDLType {
                             .flatten()
                 val annotationsOpcode = Opcode.Integer.listFrom(annotations.size, OpcodeEncoding.LEB) +
                         annotations
-                                .map {
-                                    when (it) {
-                                        IDLFuncAnn.Query -> Opcode.Integer.listFrom(1, OpcodeEncoding.BYTE)
-                                        IDLFuncAnn.Oneway -> Opcode.Integer.listFrom(2, OpcodeEncoding.BYTE)
-                                    }
+                            .map {
+                                when (it) {
+                                    IDLFuncAnn.Query -> Opcode.Integer.listFrom(1, OpcodeEncoding.BYTE)
+                                    IDLFuncAnn.Oneway -> Opcode.Integer.listFrom(2, OpcodeEncoding.BYTE)
                                 }
+                            }
                             .flatten()
 
                 funcOpcode + argsOpcode + resultsOpcode + annotationsOpcode
@@ -93,7 +120,7 @@ sealed class IDLType {
             override fun transpile(fileSpec: FileSpec.Builder, packageName: String): TypeName {
                 val funcTypeName = nextAnonymousFuncTypeName(packageName)
 
-                val arguments = arguments.mapIndexed { idx, arg ->
+                val args = arguments.mapIndexed { idx, arg ->
                     val argName = arg.name ?: "arg$idx"
                     val argTypeName = arg.type.transpile(fileSpec, packageName)
 
@@ -107,7 +134,11 @@ sealed class IDLType {
                         result.type.transpile(fileSpec, packageName)
                     }
                     results.isNotEmpty() -> {
-                        val resultClassName = createResultValueTypeName(funcTypeName.simpleName, packageName)
+                        val resultClassName =
+                            createResultValueTypeName(
+                                funcTypeName.simpleName,
+                                packageName
+                            )
                         val resultClassBuilder = TypeSpec.classBuilder(resultClassName).addModifiers(KModifier.DATA)
 
                         val constructorBuilder = FunSpec.constructorBuilder()
@@ -133,12 +164,13 @@ sealed class IDLType {
                 }
 
                 return LambdaTypeName
-                    .get(parameters = arguments, returnType = resultName)
+                    .get(parameters = args, returnType = resultName)
                     .copy(suspending = true)
             }
         }
 
-        data class Service(val methods: List<IDLMethod>) : Reference(), IDLActorType {
+        data class Service(val methods: List<IDLMethod>) : Reference(),
+            IDLActorType {
             override val opcodeList by lazy {
                 Opcode.Integer.listFrom(IDLOpcode.SERVICE) +
                         Opcode.Integer.listFrom(methods.size, OpcodeEncoding.LEB) +
@@ -160,10 +192,14 @@ sealed class IDLType {
                     val actorClassBuilder = TypeSpec.classBuilder(actorClassName)
 
                     for (method in methods) {
-                        actorClassBuilder.addProperty(
-                            method.name,
-                            (method.type as IDLType).transpile(fileSpec, packageName)
-                        )
+                        val propertySpec = PropertySpec
+                            .builder(
+                                method.name,
+                                (method.type as IDLType).transpile(fileSpec, packageName)
+                            )
+                            .initializer(transpileFuncBody(method.type))
+
+                        actorClassBuilder.addProperty(propertySpec.build())
                     }
 
                     actorClassBuilder
@@ -177,7 +213,9 @@ sealed class IDLType {
         }
 
         object Principal : Reference() {
-            override val opcodeList by lazy { Opcode.Integer.listFrom(IDLOpcode.PRINCIPAL) }
+            override val opcodeList by lazy {
+                Opcode.Integer.listFrom(IDLOpcode.PRINCIPAL)
+            }
 
             override fun toString() = "Principal"
             override fun transpile(fileSpec: FileSpec.Builder, packageName: String) =
@@ -187,14 +225,18 @@ sealed class IDLType {
 
     sealed class Constructive : IDLType() {
         data class Opt(val type: IDLType) : Constructive() {
-            override val opcodeList by lazy { Opcode.Integer.listFrom(IDLOpcode.OPT) + getInnerTypeOpcodeList(type) }
+            override val opcodeList by lazy {
+                Opcode.Integer.listFrom(IDLOpcode.OPT) + getInnerTypeOpcodeList(type)
+            }
 
             override fun transpile(fileSpec: FileSpec.Builder, packageName: String) =
                 type.transpile(fileSpec, packageName).copy(true)
         }
 
         data class Vec(val type: IDLType) : Constructive() {
-            override val opcodeList by lazy { Opcode.Integer.listFrom(IDLOpcode.VEC) + getInnerTypeOpcodeList(type) }
+            override val opcodeList by lazy {
+                Opcode.Integer.listFrom(IDLOpcode.VEC) + getInnerTypeOpcodeList(type)
+            }
 
             override fun transpile(fileSpec: FileSpec.Builder, packageName: String) =
                 ClassName("kotlin.collections", "List")
@@ -218,7 +260,9 @@ sealed class IDLType {
             }
 
             override fun transpile(fileSpec: FileSpec.Builder, packageName: String): TypeName {
-                val recordName = nextAnonymousTypeName(packageName)
+                val recordName =
+                    nextAnonymousTypeName(packageName)
+
                 val recordBuilder = if (fields.isEmpty()) {
                     TypeSpec.objectBuilder(recordName)
                 } else {
@@ -257,7 +301,8 @@ sealed class IDLType {
             }
 
             override fun transpile(fileSpec: FileSpec.Builder, packageName: String): TypeName {
-                val variantName = nextAnonymousTypeName(packageName)
+                val variantName =
+                    nextAnonymousTypeName(packageName)
 
                 val variantBuilder = if (fields.isEmpty()) {
                     TypeSpec.objectBuilder(variantName)
@@ -422,8 +467,9 @@ sealed class IDLType {
 }
 
 data class IDLFieldType(val name: String?, val type: IDLType) {
-    fun getOpcodeList(idx: Int) =
-        Opcode.Integer.listFrom(idx, OpcodeEncoding.LEB) + IDLType.getInnerTypeOpcodeList(type)
+    fun getOpcodeList(idx: Int) = Opcode.Integer.listFrom(idx, OpcodeEncoding.LEB) + IDLType.getInnerTypeOpcodeList(
+        type
+    )
 }
 
 data class IDLArgType(val name: String?, val type: IDLType) {
@@ -457,23 +503,3 @@ interface IDLMethodType {
 }
 
 interface IDLActorType
-
-sealed class Opcode {
-    data class Integer(val value: Int, val encoding: OpcodeEncoding = OpcodeEncoding.SLEB) : Opcode() {
-        companion object {
-            fun listFrom(value: Int, encoding: OpcodeEncoding = OpcodeEncoding.SLEB) = listOf(Integer(value, encoding))
-            fun listFrom(opcode: IDLOpcode, encoding: OpcodeEncoding = OpcodeEncoding.SLEB) =
-                listOf(Integer(opcode.value, encoding))
-        }
-    }
-
-    data class Utf8(val value: String, val encoding: OpcodeEncoding) : Opcode() {
-        companion object {
-            fun listFrom(value: String, encoding: OpcodeEncoding = OpcodeEncoding.LEB) = listOf(Utf8(value, encoding))
-        }
-    }
-}
-
-enum class OpcodeEncoding {
-    LEB, SLEB, BYTE
-}
