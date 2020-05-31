@@ -138,11 +138,19 @@ object KtTranspiler {
             is IDLType.Reference.Func -> {
                 val funcTypeName = name ?: context.nextAnonymousFuncTypeName()
 
-                val args = type.arguments.mapIndexed { idx, arg ->
+                val func = FunSpec.builder("invoke")
+                    .addModifiers(KModifier.OPERATOR)
+                    .addModifiers(KModifier.SUSPEND)
+                    .addCode(transpileFuncBody(type, context))
+
+                val poetizedArgs = type.arguments.joinToString { it.poetize() }
+
+                type.arguments.forEachIndexed { idx, arg ->
                     val argName = arg.name ?: "arg$idx"
                     val argTypeName = transpileType(arg.type, context)
 
-                    ParameterSpec.builder(argName, argTypeName).build()
+                    val argParam = ParameterSpec.builder(argName, argTypeName).build()
+                    func.addParameter(argParam)
                 }
 
                 val resultName = when {
@@ -176,19 +184,16 @@ object KtTranspiler {
                     }
                     else -> Unit::class.asClassName()
                 }
-
-                val func = FunSpec.builder("invoke")
-                    .addModifiers(KModifier.OPERATOR)
-                    .addModifiers(KModifier.SUSPEND)
-
-                for (arg in args) {
-                    func.addParameter(arg)
-                }
-
                 func.returns(resultName)
+
+                val argTypes = PropertySpec
+                    .builder("argTypes", List::class.asTypeName().parameterizedBy(IDLType::class.asTypeName()))
+                    .initializer(CodeBlock.of("listOf($poetizedArgs)"))
+                    .build()
 
                 val callable = TypeSpec.classBuilder(funcTypeName)
                     .addFunction(func.build())
+                    .addProperty(argTypes)
 
                 makeSerializer(callable)
 
@@ -205,9 +210,10 @@ object KtTranspiler {
                     val actorClassBuilder = TypeSpec.classBuilder(actorClassName)
 
                     for (method in type.methods) {
+                        val methodFuncTypeName = transpileType(method.type as IDLType, context)
                         val propertySpec = PropertySpec
-                            .builder(method.name, transpileType(method.type as IDLType, context))
-                            .initializer(transpileFuncBody(method.type, context))
+                            .builder(method.name, methodFuncTypeName)
+                            .initializer(CodeBlock.of("%T()", methodFuncTypeName))
 
                         actorClassBuilder.addProperty(propertySpec.build())
                     }
@@ -253,11 +259,11 @@ object KtTranspiler {
                     context.typeTable.copyLabelsForType(arg.type, typeTable)
                 }
 
-                CodeBlock.of("""{
+                CodeBlock.of("""
                     | // I = ${type.arguments.map { it.type.getTOpcodeList(typeTable) }}
                     | // T = ${typeTable.registry.map { it.getTOpcodeList(typeTable) }}
                     | // labels = ${typeTable.labels}
-                    |}""".trimMargin())
+                    |""".trimMargin())
             }
             else -> CodeBlock.of("")
         }
