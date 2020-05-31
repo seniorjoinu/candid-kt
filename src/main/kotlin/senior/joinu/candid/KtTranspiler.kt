@@ -84,13 +84,37 @@ object KtTranspiler {
                                 .builder(fieldName, fieldTypeName)
                                 .initializer(fieldName)
                                 .build()
+                            val fieldTypeProp = PropertySpec
+                                .builder("${fieldName}Type", IDLType::class.asTypeName())
+                                .initializer(CodeBlock.of(field.type.poetize()))
+                                .build()
+
                             dataClassBuilder.addProperty(propertyBuilder)
+                            dataClassBuilder.addProperty(fieldTypeProp)
                         }
 
                         dataClassBuilder.primaryConstructor(constructorBuilder.build())
                     }
 
-                    makeSerializer(recordBuilder)
+                    val poetizedFieldTypes = type.fields
+                        .mapIndexed { idx, it -> (it.name ?: idx.toString()) to it.poetize() }
+
+                    val fieldTypesProp = PropertySpec
+                        .builder("fieldTypes", Map::class.asTypeName().parameterizedBy(String::class.asTypeName(), IDLType::class.asTypeName()))
+                        .initializer(CodeBlock.of("mapOf(${poetizedFieldTypes.joinToString { (name, field) -> "\"$name\" to $field" }})"))
+                        .build()
+
+                    // TODO: дальше - сериализация; по IDL типу проперти понимаем, как именно нужно сериализовать значение
+
+                    recordBuilder.addProperty(fieldTypesProp)
+
+                    recordBuilder.addSuperinterface(Serializer::class.asClassName())
+                    val serialize = FunSpec
+                        .builder("serialize")
+                        .addParameter("buf", ByteBuffer::class.asTypeName())
+                        .addModifiers(KModifier.OVERRIDE)
+                        .build()
+                    recordBuilder.addFunction(serialize)
 
                     val record = recordBuilder.build()
                     context.currentSpec.addType(record)
