@@ -3,7 +3,6 @@ package senior.joinu.candid.parser
 import com.github.h0tk3y.betterParse.grammar.parseToEnd
 import org.junit.jupiter.api.Test
 import senior.joinu.candid.IDLGrammar
-import senior.joinu.candid.IDLType
 import senior.joinu.candid.KtTranspiler
 
 class GrammarTest {
@@ -12,7 +11,7 @@ class GrammarTest {
         val testCandid = """
             import "test.did";
             type my_type = nat8;
-            type List = record { head: int; tail: List };
+            type List = record { head: int; tail: opt List };
             type f = func (List, func (int32) -> (int64)) -> (opt List);
             // single line comment
             type broker = service {
@@ -29,11 +28,13 @@ class GrammarTest {
         """.trimIndent()
 
         val program = IDLGrammar.parseToEnd(testCandid)
-        val kt = KtTranspiler.transpile(program, "", "Test.kt")
+        val ktContext = KtTranspiler.transpile(program, "", "Test.kt")
 
-        kt.writeTo(System.out)
-        println(IDLType.labels)
-        println(IDLType.typeTable.mapIndexed { index, idlType -> "$index: $idlType" })
+        val fileSpec = ktContext.currentSpec.build()
+
+        fileSpec.writeTo(System.out)
+        println(ktContext.typeTable.labels)
+        println(ktContext.typeTable.registry.mapIndexed { index, idlType -> "$index: $idlType" })
     }
 }
 

@@ -7,12 +7,12 @@ import java.util.*
 
 val twoPowThirtyTwo: BigInteger = BigInteger.valueOf(2).pow(32)
 
-fun idlHash(id: String): BigInteger {
+fun idlHash(id: String): Int {
     val result = id.foldIndexed(BigInteger.ZERO) { idx, acc, char ->
         acc + char.toLong().toBigInteger() * BigInteger.valueOf(223).pow((id.length - 1) - idx)
     }
 
-    return result.mod(twoPowThirtyTwo)
+    return result.mod(twoPowThirtyTwo).intValueExact()
 }
 
 /*
