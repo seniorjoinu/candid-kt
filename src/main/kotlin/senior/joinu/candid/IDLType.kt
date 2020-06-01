@@ -124,14 +124,14 @@ sealed class IDLType {
             return typeTable.getRegistryIndexByLabel(this)
         }
 
-        override fun poetize() = CodeBlock.of("%T($value)", Id::class.asTypeName()).toString()
+        override fun poetize() = CodeBlock.of("%T(\"$value\")", Id::class.asTypeName()).toString()
     }
 
     sealed class Reference : IDLType() {
         data class Func(
-            val arguments: List<IDLArgType>,
-            val results: List<IDLArgType>,
-            val annotations: List<IDLFuncAnn>
+            val arguments: List<IDLArgType> = emptyList(),
+            val results: List<IDLArgType> = emptyList(),
+            val annotations: List<IDLFuncAnn> = emptyList()
         ) : Reference(), IDLMethodType {
             override fun getTOpcodeList(typeTable: TypeTable): List<Opcode> {
                 val funcOpcode = Opcode.Integer.listFrom(IDLOpcode.FUNC)
@@ -170,7 +170,7 @@ sealed class IDLType {
             }
         }
 
-        data class Service(val methods: List<IDLMethod>) : Reference(), IDLActorType {
+        data class Service(val methods: List<IDLMethod> = emptyList()) : Reference(), IDLActorType {
             override fun getTOpcodeList(typeTable: TypeTable): List<Opcode> {
                 return Opcode.Integer.listFrom(IDLOpcode.SERVICE) +
                         Opcode.Integer.listFrom(methods.size, OpcodeEncoding.LEB) +
@@ -185,7 +185,7 @@ sealed class IDLType {
 
             override fun poetize(): String {
                 val poetizedMethods = methods.joinToString { it.poetize() }
-                return CodeBlock.of("%T($poetizedMethods)", Service::class.asTypeName()).toString()
+                return CodeBlock.of("%T(methods = listOf($poetizedMethods))", Service::class.asTypeName()).toString()
             }
         }
 
@@ -226,7 +226,7 @@ sealed class IDLType {
             override fun poetize() = CodeBlock.of("%T", Blob::class.asTypeName()).toString()
         }
 
-        data class Record(val fields: List<IDLFieldType>) : Constructive() {
+        data class Record(val fields: List<IDLFieldType> = emptyList()) : Constructive() {
             override fun getTOpcodeList(typeTable: TypeTable): List<Opcode> {
                 return Opcode.Integer.listFrom(IDLOpcode.RECORD) +
                         Opcode.Integer.listFrom(fields.size, OpcodeEncoding.LEB) +
@@ -239,11 +239,11 @@ sealed class IDLType {
 
             override fun poetize(): String {
                 val poetizedFields = fields.joinToString { it.poetize() }
-                return CodeBlock.of("%T($poetizedFields)", Record::class.asTypeName()).toString()
+                return CodeBlock.of("%T(fields = listOf($poetizedFields))", Record::class.asTypeName()).toString()
             }
         }
 
-        data class Variant(val fields: List<IDLFieldType>) : Constructive() {
+        data class Variant(val fields: List<IDLFieldType> = emptyList()) : Constructive() {
             override fun getTOpcodeList(typeTable: TypeTable): List<Opcode> {
                 return Opcode.Integer.listFrom(IDLOpcode.VARIANT) +
                         Opcode.Integer.listFrom(fields.size, OpcodeEncoding.LEB) +
@@ -256,7 +256,7 @@ sealed class IDLType {
 
             override fun poetize(): String {
                 val poetizedFields = fields.joinToString { it.poetize() }
-                return CodeBlock.of("%T($poetizedFields)", Record::class.asTypeName()).toString()
+                return CodeBlock.of("%T(fields = listOf($poetizedFields))", Variant::class.asTypeName()).toString()
             }
         }
     }
@@ -404,12 +404,12 @@ data class IDLFieldType(val name: String?, val type: IDLType) {
     fun getOpcodeList(idx: Int, typeTable: TypeTable) = Opcode.Integer.listFrom(idx, OpcodeEncoding.LEB) +
             typeTable.getNestedTypeRegistryIndex(type)
 
-    fun poetize() = CodeBlock.of("%T($name, ${type.poetize()})", IDLFieldType::class.asTypeName()).toString()
+    fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()})", IDLFieldType::class.asTypeName()).toString()
 }
 
 data class IDLArgType(val name: String?, val type: IDLType) {
     fun getOpcodeList(typeTable: TypeTable) = typeTable.getNestedTypeRegistryIndex(type)
-    fun poetize() = CodeBlock.of("%T($name, ${type.poetize()})", IDLArgType::class.asTypeName()).toString()
+    fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()})", IDLArgType::class.asTypeName()).toString()
 }
 
 enum class IDLFuncAnn {

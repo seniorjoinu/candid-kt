@@ -2,6 +2,7 @@ package senior.joinu.candid
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import senior.joinu.leb128.Leb128
 import java.math.BigInteger
 import java.nio.ByteBuffer
 
@@ -15,9 +16,9 @@ object KtTranspiler {
 
             when (value) {
                 is IDLType.Constructive.Variant,
-                    is IDLType.Constructive.Record,
-                    is IDLType.Reference.Func,
-                    is IDLType.Reference.Service -> transpileType(value, context, ClassName(context.packageName, name))
+                is IDLType.Constructive.Record,
+                is IDLType.Reference.Func,
+                is IDLType.Reference.Service -> transpileType(value, context, ClassName(context.packageName, name))
                 else -> {
                     val typeAliasSpec = TypeAliasSpec
                         .builder(name, transpileType(value, context))
@@ -96,25 +97,22 @@ object KtTranspiler {
                         dataClassBuilder.primaryConstructor(constructorBuilder.build())
                     }
 
-                    val poetizedFieldTypes = type.fields
-                        .mapIndexed { idx, it -> (it.name ?: idx.toString()) to it.poetize() }
-
-                    val fieldTypesProp = PropertySpec
-                        .builder("fieldTypes", Map::class.asTypeName().parameterizedBy(String::class.asTypeName(), IDLType::class.asTypeName()))
-                        .initializer(CodeBlock.of("mapOf(${poetizedFieldTypes.joinToString { (name, field) -> "\"$name\" to $field" }})"))
-                        .build()
-
-                    // TODO: дальше - сериализация; по IDL типу проперти понимаем, как именно нужно сериализовать значение
-
-                    recordBuilder.addProperty(fieldTypesProp)
-
-                    recordBuilder.addSuperinterface(Serializer::class.asClassName())
+                    recordBuilder.addSuperinterface(IDLSerializable::class.asClassName())
                     val serialize = FunSpec
                         .builder("serialize")
                         .addParameter("buf", ByteBuffer::class.asTypeName())
+                        .addParameter("typeTable", TypeTable::class.asTypeName())
                         .addModifiers(KModifier.OVERRIDE)
-                        .build()
-                    recordBuilder.addFunction(serialize)
+
+                    type.fields.forEachIndexed { idx, field ->
+                        val fieldName = field.name ?: idx.toString()
+                        serialize.addStatement(
+                            "%T.serializeIDLValue(${"${fieldName}Type".escapeIfNecessary()}, ${fieldName.escapeIfNecessary()}, buf, typeTable)\n",
+                            KtSerilializer::class.asTypeName()
+                        )
+                    }
+
+                    recordBuilder.addFunction(serialize.build())
 
                     val record = recordBuilder.build()
                     context.currentSpec.addType(record)
@@ -132,10 +130,15 @@ object KtTranspiler {
                             val fieldName = field.name ?: idx.toString()
                             val fieldType = transpileType(field.type, context)
 
-                            val property = PropertySpec
+                            val valueProp = PropertySpec
                                 .builder("value", fieldType)
                                 .initializer("value")
                                 .build()
+                            val valuePropType = PropertySpec
+                                .builder("valueType", IDLType::class.asTypeName())
+                                .initializer(field.type.poetize())
+                                .build()
+
                             val constructor = FunSpec
                                 .constructorBuilder()
                                 .addParameter("value", fieldType)
@@ -144,14 +147,44 @@ object KtTranspiler {
                                 .classBuilder(fieldName)
                                 .addModifiers(KModifier.DATA)
                                 .superclass(variantName)
-                                .addProperty(property)
+                                .addProperty(valueProp)
+                                .addProperty(valuePropType)
                                 .primaryConstructor(constructor)
-                                .build()
 
-                            variantBuilder.addType(sealedSubclass)
+                            sealedSubclass.addSuperinterface(IDLSerializable::class.asClassName())
+                            val serialize = FunSpec
+                                .builder("serialize")
+                                .addParameter("buf", ByteBuffer::class.asTypeName())
+                                .addParameter("typeTable", TypeTable::class.asTypeName())
+                                .addModifiers(KModifier.OVERRIDE)
+
+                            serialize.addStatement("%T.writeUnsigned(buf, ${idx}.toUInt())\n", Leb128::class)
+                            serialize.addStatement(
+                                "%T.serializeIDLValue(valueType, value, buf, typeTable)",
+                                KtSerilializer::class.asTypeName()
+                            )
+
+                            sealedSubclass.addFunction(serialize.build())
+
+                            variantBuilder.addType(sealedSubclass.build())
                         }
                         variantBuilder
                     }
+
+                    variantBuilder.addSuperinterface(IDLSerializable::class.asClassName())
+                    val serialize = FunSpec
+                        .builder("serialize")
+                        .addParameter("buf", ByteBuffer::class.asTypeName())
+                        .addParameter("typeTable", TypeTable::class.asTypeName())
+                        .addModifiers(KModifier.OVERRIDE)
+                        .returns(Unit::class)
+
+                    serialize.addStatement(
+                        "throw %T(\"Unable·to·serialize·sealed·superclass·$variantName\")",
+                        RuntimeException::class
+                    )
+
+                    variantBuilder.addFunction(serialize.build())
 
                     val variant = variantBuilder.build()
                     context.currentSpec.addType(variant)
@@ -167,7 +200,8 @@ object KtTranspiler {
                     .addModifiers(KModifier.SUSPEND)
                     .addCode(transpileFuncBody(type, context))
 
-                val poetizedArgs = type.arguments.joinToString { it.poetize() }
+                val callable = TypeSpec.classBuilder(funcTypeName)
+                    .superclass(IDLFunc::class)
 
                 type.arguments.forEachIndexed { idx, arg ->
                     val argName = arg.name ?: "arg$idx"
@@ -175,6 +209,13 @@ object KtTranspiler {
 
                     val argParam = ParameterSpec.builder(argName, argTypeName).build()
                     func.addParameter(argParam)
+
+                    val argType = PropertySpec
+                        .builder("${argName}Type", IDLType::class)
+                        .initializer(arg.type.poetize())
+                        .build()
+
+                    callable.addProperty(argType)
                 }
 
                 val resultName = when {
@@ -210,16 +251,24 @@ object KtTranspiler {
                 }
                 func.returns(resultName)
 
-                val argTypes = PropertySpec
-                    .builder("argTypes", List::class.asTypeName().parameterizedBy(IDLType::class.asTypeName()))
-                    .initializer(CodeBlock.of("listOf($poetizedArgs)"))
+                val constructorSpec = FunSpec.constructorBuilder()
+                    .addParameter("service", IDLService::class.asTypeName().copy(true))
+                    .addParameter("funcName", String::class.asTypeName().copy(true))
+                    .build()
+                val servicePropSpec = PropertySpec
+                    .builder("service", IDLService::class.asTypeName().copy(true), KModifier.OVERRIDE)
+                    .initializer("service")
+                    .build()
+                val funcNamePropSpec = PropertySpec
+                    .builder("funcName", String::class.asTypeName().copy(true), KModifier.OVERRIDE)
+                    .initializer("funcName")
                     .build()
 
-                val callable = TypeSpec.classBuilder(funcTypeName)
+                callable
+                    .primaryConstructor(constructorSpec)
+                    .addProperty(servicePropSpec)
+                    .addProperty(funcNamePropSpec)
                     .addFunction(func.build())
-                    .addProperty(argTypes)
-
-                makeSerializer(callable)
 
                 context.currentSpec.addType(callable.build())
 
@@ -227,25 +276,30 @@ object KtTranspiler {
             }
             is IDLType.Reference.Service -> {
                 val actorClassName = name ?: context.nextAnonymousTypeName()
+                val actorClassBuilder = TypeSpec.classBuilder(actorClassName)
 
-                val actorClassBuilder = if (type.methods.isEmpty()) {
-                    TypeSpec.objectBuilder(actorClassName)
-                } else {
-                    val actorClassBuilder = TypeSpec.classBuilder(actorClassName)
+                val constructorSpec = FunSpec.constructorBuilder()
+                    .addParameter("id", ByteArray::class.asTypeName().copy(true))
+                    .build()
 
-                    for (method in type.methods) {
-                        val methodFuncTypeName = transpileType(method.type as IDLType, context)
-                        val propertySpec = PropertySpec
-                            .builder(method.name, methodFuncTypeName)
-                            .initializer(CodeBlock.of("%T()", methodFuncTypeName))
+                val idPropspec = PropertySpec
+                    .builder("id", ByteArray::class.asTypeName().copy(true), KModifier.OVERRIDE)
+                    .initializer("id")
+                    .build()
 
-                        actorClassBuilder.addProperty(propertySpec.build())
-                    }
+                actorClassBuilder
+                    .superclass(IDLService::class)
+                    .primaryConstructor(constructorSpec)
+                    .addProperty(idPropspec)
 
-                    actorClassBuilder
+                for (method in type.methods) {
+                    val methodFuncTypeName = transpileType(method.type as IDLType, context)
+                    val propertySpec = PropertySpec
+                        .builder(method.name, methodFuncTypeName)
+                        .initializer(CodeBlock.of("%T(this, \"${method.name}\")", methodFuncTypeName))
+
+                    actorClassBuilder.addProperty(propertySpec.build())
                 }
-
-                makeSerializer(actorClassBuilder)
 
                 val actorClass = actorClassBuilder.build()
                 context.currentSpec.addType(actorClass)
@@ -254,16 +308,6 @@ object KtTranspiler {
             }
             is IDLType.Reference.Principal -> Principal::class.asClassName()
         }
-    }
-
-    private fun makeSerializer(spec: TypeSpec.Builder) {
-        spec.addSuperinterface(Serializer::class.asClassName())
-        val serialize = FunSpec
-            .builder("serialize")
-            .addParameter("buf", ByteBuffer::class.asTypeName())
-            .addModifiers(KModifier.OVERRIDE)
-            .build()
-        spec.addFunction(serialize)
     }
 
     fun transpileFuncBody(type: IDLType, context: TranspileContext): CodeBlock {
@@ -283,11 +327,7 @@ object KtTranspiler {
                     context.typeTable.copyLabelsForType(arg.type, typeTable)
                 }
 
-                CodeBlock.of("""
-                    | // I = ${type.arguments.map { it.type.getTOpcodeList(typeTable) }}
-                    | // T = ${typeTable.registry.map { it.getTOpcodeList(typeTable) }}
-                    | // labels = ${typeTable.labels}
-                    |""".trimMargin())
+                CodeBlock.of("TODO()")
             }
             else -> CodeBlock.of("")
         }
