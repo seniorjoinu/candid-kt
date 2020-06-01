@@ -195,10 +195,11 @@ object KtTranspiler {
             is IDLType.Reference.Func -> {
                 val funcTypeName = name ?: context.nextAnonymousFuncTypeName()
 
-                val func = FunSpec.builder("invoke")
+                val typeTable = TypeTable()
+                val invoke = FunSpec.builder("invoke")
                     .addModifiers(KModifier.OPERATOR)
                     .addModifiers(KModifier.SUSPEND)
-                    .addCode(transpileFuncBody(type, context))
+                    .addStatement("val buf = %T.allocate(0)", ByteBuffer::class)
 
                 val callable = TypeSpec.classBuilder(funcTypeName)
                     .superclass(IDLFunc::class)
@@ -208,14 +209,17 @@ object KtTranspiler {
                     val argTypeName = transpileType(arg.type, context)
 
                     val argParam = ParameterSpec.builder(argName, argTypeName).build()
-                    func.addParameter(argParam)
+                    invoke.addParameter(argParam)
 
                     val argType = PropertySpec
                         .builder("${argName}Type", IDLType::class)
                         .initializer(arg.type.poetize())
                         .build()
 
+                    context.typeTable.copyLabelsForType(arg.type, typeTable)
+
                     callable.addProperty(argType)
+                    invoke.addStatement("%T.serializeIDLValue(${"${argName}Type".escapeIfNecessary()}, ${argName.escapeIfNecessary()}, buf, typeTable)", KtSerilializer::class)
                 }
 
                 val resultName = when {
@@ -249,7 +253,7 @@ object KtTranspiler {
                     }
                     else -> Unit::class.asClassName()
                 }
-                func.returns(resultName)
+                invoke.returns(resultName)
 
                 val constructorSpec = FunSpec.constructorBuilder()
                     .addParameter("service", IDLService::class.asTypeName().copy(true))
@@ -263,12 +267,17 @@ object KtTranspiler {
                     .builder("funcName", String::class.asTypeName().copy(true), KModifier.OVERRIDE)
                     .initializer("funcName")
                     .build()
+                val typeTableProcSpec = PropertySpec
+                    .builder("typeTable", TypeTable::class)
+                    .initializer(typeTable.poetize())
+                    .build()
 
                 callable
                     .primaryConstructor(constructorSpec)
                     .addProperty(servicePropSpec)
                     .addProperty(funcNamePropSpec)
-                    .addFunction(func.build())
+                    .addProperty(typeTableProcSpec)
+                    .addFunction(invoke.build())
 
                 context.currentSpec.addType(callable.build())
 
@@ -307,29 +316,6 @@ object KtTranspiler {
                 return actorClassName
             }
             is IDLType.Reference.Principal -> Principal::class.asClassName()
-        }
-    }
-
-    fun transpileFuncBody(type: IDLType, context: TranspileContext): CodeBlock {
-        return when (type) {
-            is IDLType.Id -> {
-                val innerType = context.typeTable.getTypeByLabel(type)
-                return transpileFuncBody(innerType, context)
-            }
-            is IDLType.Reference.Func -> {
-                // TODO: add "serialize type table", "serialize arg type", "serialize arg value" functions
-                val argNames = type.arguments
-                    .mapIndexed { index, arg -> arg.name ?: "arg$index" }
-                    .joinToString(postfix = " ->") { it }
-
-                val typeTable = TypeTable()
-                for (arg in type.arguments) {
-                    context.typeTable.copyLabelsForType(arg.type, typeTable)
-                }
-
-                CodeBlock.of("TODO()")
-            }
-            else -> CodeBlock.of("")
         }
     }
 }

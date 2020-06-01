@@ -3,11 +3,20 @@ package senior.joinu.candid
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
 
-class TypeTable {
+class TypeTable(
     // list of types in type table
-    val registry = mutableListOf<IDLType>()
+    val registry: MutableList<IDLType> = mutableListOf(),
     // some types have labels that are used in code
-    val labels = mutableMapOf<IDLType.Id, Int>()
+    val labels: MutableMap<IDLType.Id, Int> = mutableMapOf()
+) {
+    fun poetize(): String {
+        val poetizedRegistry = registry.joinToString { it.poetize() }
+        val poetizedLabels = labels.entries.joinToString { (key, value) -> "${key.poetize()} to $value" }
+
+        return CodeBlock
+            .of("%T(registry = mutableListOf($poetizedRegistry), labels = mutableMapOf($poetizedLabels))", TypeTable::class)
+            .toString()
+    }
 
     // copies labels from this TT into result TT, if these labels are used by type
     fun copyLabelsForType(type: IDLType, result: TypeTable) {

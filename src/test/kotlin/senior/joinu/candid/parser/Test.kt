@@ -28,8 +28,12 @@ class AnonFunc0(
 ) : IDLFunc() {
     val arg0Type: IDLType = senior.joinu.candid.IDLType.Primitive.Int32
 
+    val typeTable: TypeTable = senior.joinu.candid.TypeTable(registry = mutableListOf(), labels =
+    mutableMapOf())
+
     suspend operator fun invoke(arg0: Int): Long {
-        TODO()
+        val buf = ByteBuffer.allocate(0)
+        KtSerilializer.serializeIDLValue(arg0Type, arg0, buf, typeTable)
     }
 }
 
@@ -44,8 +48,18 @@ class f(
         results = listOf(senior.joinu.candid.IDLArgType("null",
             senior.joinu.candid.IDLType.Primitive.Int64)), annotations = listOf())
 
+    val typeTable: TypeTable = senior.joinu.candid.TypeTable(registry =
+    mutableListOf(senior.joinu.candid.IDLType.Constructive.Record(fields =
+    listOf(senior.joinu.candid.IDLFieldType("head",
+        senior.joinu.candid.IDLType.Primitive.Integer), senior.joinu.candid.IDLFieldType("tail",
+        senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Id("List"))))),
+        senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Id("List"))), labels
+    = mutableMapOf(senior.joinu.candid.IDLType.Id("List") to 0))
+
     suspend operator fun invoke(arg0: List, arg1: AnonFunc0): List? {
-        TODO()
+        val buf = ByteBuffer.allocate(0)
+        KtSerilializer.serializeIDLValue(arg0Type, arg0, buf, typeTable)
+        KtSerilializer.serializeIDLValue(arg1Type, arg1, buf, typeTable)
     }
 }
 
@@ -53,8 +67,11 @@ class AnonFunc2(
     override val service: IDLService?,
     override val funcName: String?
 ) : IDLFunc() {
+    val typeTable: TypeTable = senior.joinu.candid.TypeTable(registry = mutableListOf(), labels =
+    mutableMapOf())
+
     suspend operator fun invoke() {
-        TODO()
+        val buf = ByteBuffer.allocate(0)
     }
 }
 
@@ -62,8 +79,11 @@ class AnonFunc3(
     override val service: IDLService?,
     override val funcName: String?
 ) : IDLFunc() {
+    val typeTable: TypeTable = senior.joinu.candid.TypeTable(registry = mutableListOf(), labels =
+    mutableMapOf())
+
     suspend operator fun invoke(): UInt {
-        TODO()
+        val buf = ByteBuffer.allocate(0)
     }
 }
 
@@ -81,8 +101,12 @@ class AnonFunc1(
 ) : IDLFunc() {
     val nameType: IDLType = senior.joinu.candid.IDLType.Primitive.Text
 
+    val typeTable: TypeTable = senior.joinu.candid.TypeTable(registry = mutableListOf(), labels =
+    mutableMapOf())
+
     suspend operator fun invoke(name: String): AnonIDLType0 {
-        TODO()
+        val buf = ByteBuffer.allocate(0)
+        KtSerilializer.serializeIDLValue(nameType, name, buf, typeTable)
     }
 }
 
@@ -219,8 +243,13 @@ class AnonFunc4(
     val arg1Type: IDLType =
         senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Primitive.Bool)
 
+    val typeTable: TypeTable = senior.joinu.candid.TypeTable(registry = mutableListOf(), labels =
+    mutableMapOf())
+
     suspend operator fun invoke(test: ByteArray, arg1: Boolean?) {
-        TODO()
+        val buf = ByteBuffer.allocate(0)
+        KtSerilializer.serializeIDLValue(testType, test, buf, typeTable)
+        KtSerilializer.serializeIDLValue(arg1Type, arg1, buf, typeTable)
     }
 }
 
@@ -235,12 +264,25 @@ class AnonFunc5(
     val arg2Type: IDLType =
         senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Id("List"))
 
+    val typeTable: TypeTable = senior.joinu.candid.TypeTable(registry =
+    mutableListOf(senior.joinu.candid.IDLType.Primitive.Nat8,
+        senior.joinu.candid.IDLType.Constructive.Record(fields =
+        listOf(senior.joinu.candid.IDLFieldType("head",
+            senior.joinu.candid.IDLType.Primitive.Integer), senior.joinu.candid.IDLFieldType("tail",
+            senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Id("List"))))),
+        senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Id("List"))), labels
+    = mutableMapOf(senior.joinu.candid.IDLType.Id("my_type") to 0,
+        senior.joinu.candid.IDLType.Id("List") to 1))
+
     suspend operator fun invoke(
         arg0: my_type,
         arg1: List,
         arg2: List?
     ): BigInteger {
-        TODO()
+        val buf = ByteBuffer.allocate(0)
+        KtSerilializer.serializeIDLValue(arg0Type, arg0, buf, typeTable)
+        KtSerilializer.serializeIDLValue(arg1Type, arg1, buf, typeTable)
+        KtSerilializer.serializeIDLValue(arg2Type, arg2, buf, typeTable)
     }
 }
 
@@ -310,12 +352,23 @@ class AnonFunc6(
     val arg2Type: IDLType =
         senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Id("List"))
 
+    val typeTable: TypeTable = senior.joinu.candid.TypeTable(registry =
+    mutableListOf(senior.joinu.candid.IDLType.Constructive.Record(fields =
+    listOf(senior.joinu.candid.IDLFieldType("head",
+        senior.joinu.candid.IDLType.Primitive.Integer), senior.joinu.candid.IDLFieldType("tail",
+        senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Id("List"))))),
+        senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Id("List"))), labels
+    = mutableMapOf(senior.joinu.candid.IDLType.Id("List") to 0))
+
     suspend operator fun invoke(
         arg0: kotlin.collections.List<String?>,
         arg1: AnonIDLType3,
         arg2: List?
     ): AnonIDLType4 {
-        TODO()
+        val buf = ByteBuffer.allocate(0)
+        KtSerilializer.serializeIDLValue(arg0Type, arg0, buf, typeTable)
+        KtSerilializer.serializeIDLValue(arg1Type, arg1, buf, typeTable)
+        KtSerilializer.serializeIDLValue(arg2Type, arg2, buf, typeTable)
     }
 }
 
