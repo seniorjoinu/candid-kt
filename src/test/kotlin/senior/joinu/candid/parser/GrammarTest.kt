@@ -3,7 +3,7 @@ package senior.joinu.candid.parser
 import com.github.h0tk3y.betterParse.grammar.parseToEnd
 import org.junit.jupiter.api.Test
 import senior.joinu.candid.IDLGrammar
-import senior.joinu.candid.KtTranspiler
+import senior.joinu.candid.transpile.KtTranspiler
 
 class GrammarTest {
     @Test

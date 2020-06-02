@@ -1,5 +1,7 @@
 package senior.joinu.candid
 
+import com.squareup.kotlinpoet.CodeBlock
+import senior.joinu.candid.transpile.TC
 import senior.joinu.leb128.Leb128
 import senior.joinu.leb128.Leb128BI
 import java.math.BigInteger
@@ -8,6 +10,16 @@ import java.nio.charset.StandardCharsets
 import java.util.*
 
 object KtSerilializer {
+    fun poetizeSerializeIDLValueInvocation(varName: String) = CodeBlock.of(
+        "%T.serializeIDLValue(${"${varName}Type".escapeIfNecessary()}, ${varName.escapeIfNecessary()}, ${TC.bufName}, ${TC.typeTableName})",
+        KtSerilializer::class
+    ).toString()
+
+    fun poetizeGetSizeBytesOfIDLValueInvocation(varName: String) = CodeBlock.of(
+        "%T.getSizeBytesOfIDLValue(${"${varName}Type".escapeIfNecessary()}, ${varName.escapeIfNecessary()}, ${TC.typeTableName})",
+        KtSerilializer::class
+    ).toString()
+
     fun serializeIDLValue(type: IDLType, value: Any?, buf: ByteBuffer, typeTable: TypeTable) {
         when (type) {
             is IDLType.Id -> {
@@ -176,7 +188,11 @@ object KtSerilializer {
                     is IDLType.Reference.Service -> {
                         val serviceValue = value as IDLService
                         if (serviceValue.id != null) {
-                            Byte.SIZE_BYTES + getSizeBytesOfIDLValue(IDLType.Constructive.Blob, serviceValue.id, typeTable)
+                            Byte.SIZE_BYTES + getSizeBytesOfIDLValue(
+                                IDLType.Constructive.Blob,
+                                serviceValue.id,
+                                typeTable
+                            )
                         } else
                             Byte.SIZE_BYTES
                     }
@@ -184,8 +200,12 @@ object KtSerilializer {
                         val funcValue = value as IDLFunc
                         if (funcValue.funcName != null && funcValue.service != null) {
                             Byte.SIZE_BYTES +
-                            getSizeBytesOfIDLValue(IDLType.Reference.Service(emptyList()), funcValue.service, typeTable) +
-                            getSizeBytesOfIDLValue(IDLType.Primitive.Text, funcValue.funcName, typeTable)
+                                    getSizeBytesOfIDLValue(
+                                        IDLType.Reference.Service(emptyList()),
+                                        funcValue.service,
+                                        typeTable
+                                    ) +
+                                    getSizeBytesOfIDLValue(IDLType.Primitive.Text, funcValue.funcName, typeTable)
                         } else
                             Byte.SIZE_BYTES
                     }
@@ -193,7 +213,7 @@ object KtSerilializer {
                         val principalValue = value as IDLPrincipal
                         if (principalValue.id != null) {
                             Byte.SIZE_BYTES +
-                            getSizeBytesOfIDLValue(IDLType.Constructive.Blob, principalValue.id, typeTable)
+                                    getSizeBytesOfIDLValue(IDLType.Constructive.Blob, principalValue.id, typeTable)
                         } else
                             Byte.SIZE_BYTES
                     }
