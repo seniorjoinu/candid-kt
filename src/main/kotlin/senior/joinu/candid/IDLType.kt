@@ -2,6 +2,8 @@ package senior.joinu.candid
 
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
+import senior.joinu.leb128.Leb128
+import java.nio.ByteBuffer
 
 class TypeTable(
     // list of types in type table
@@ -9,12 +11,31 @@ class TypeTable(
     // some types have labels that are used in code
     val labels: MutableMap<IDLType.Id, Int> = mutableMapOf()
 ) {
+    fun encode(buf: ByteBuffer) {
+        Leb128.writeUnsigned(buf, registry.size.toUInt())
+        registry.forEach { type ->
+            type.getTOpcodeList(this).forEach { opcode -> opcode.encode(buf) }
+        }
+    }
+
+    fun sizeBytes(): Int {
+        return Leb128.sizeUnsigned(registry.size) + registry
+            .map { type ->
+                type.getTOpcodeList(this).map { opcode -> opcode.sizeBytes() }
+            }
+            .flatten()
+            .sum()
+    }
+
     fun poetize(): String {
         val poetizedRegistry = registry.joinToString { it.poetize() }
         val poetizedLabels = labels.entries.joinToString { (key, value) -> "${key.poetize()} to $value" }
 
         return CodeBlock
-            .of("%T(registry = mutableListOf($poetizedRegistry), labels = mutableMapOf($poetizedLabels))", TypeTable::class)
+            .of(
+                "%T(registry = mutableListOf($poetizedRegistry), labels = mutableMapOf($poetizedLabels))",
+                TypeTable::class
+            )
             .toString()
     }
 
@@ -435,6 +456,7 @@ enum class IDLFuncAnn {
 data class IDLMethod(val name: String, val type: IDLMethodType) {
     fun poetize() = CodeBlock.of("%T($name, ${(type as IDLType).poetize()})", IDLMethod::class.asTypeName()).toString()
 }
+
 sealed class IDLDef {
     data class Type(val name: String, val type: IDLType) : IDLDef()
     data class Import(val filePath: String) : IDLDef()

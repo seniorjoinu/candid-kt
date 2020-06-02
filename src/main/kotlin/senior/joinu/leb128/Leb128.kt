@@ -130,6 +130,30 @@ object Leb128BI {
         }
     }
 
+    fun sizeNat(nat: BigInteger): Int {
+        var value = if (nat < BigInteger.ZERO) nat.negate() else nat
+        var result = 0
+
+        while (true) {
+            val bigByte = value and BigInteger.valueOf(sevenBits.toLong())
+            var byte = bigByte.toUBytesLE().first()
+
+            value = value shr 7
+
+            if (value != BigInteger.ZERO) {
+                byte = byte or eightBits.toByte()
+            }
+
+            result++
+
+            if (value == BigInteger.ZERO) {
+                break
+            }
+        }
+
+        return result
+    }
+
     fun readNat(buf: ByteBuffer): BigInteger {
         var result = BigInteger.ZERO
         var shift = 0
@@ -171,6 +195,32 @@ object Leb128BI {
             byte = byte or eightBits.toByte()
             buf.put(byte)
         }
+    }
+
+    fun sizeInt(int: BigInteger): Int {
+        var value = int
+        var result = 0
+
+        while (true) {
+            val bigByte = int and BigInteger.valueOf(nineBits.toLong())
+            var byte = bigByte.toBytesLE().first()
+
+            value = value shr 6
+
+            val done = value == BigInteger.ZERO || value == BigInteger.valueOf(-1)
+            if (done) {
+                byte = byte and sevenBits.toByte()
+                result++
+
+                break
+            }
+
+            value = value shr 1
+            byte = byte or eightBits.toByte()
+            result++
+        }
+
+        return result
     }
 
     fun readInt(buf: ByteBuffer): BigInteger {

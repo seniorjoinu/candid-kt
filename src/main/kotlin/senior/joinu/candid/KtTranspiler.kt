@@ -5,6 +5,7 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import senior.joinu.leb128.Leb128
 import java.math.BigInteger
 import java.nio.ByteBuffer
+import java.util.*
 
 object KtTranspiler {
     fun transpile(program: IDLProgram, packageName: String, fileName: String): TranspileContext {
@@ -98,21 +99,35 @@ object KtTranspiler {
                     }
 
                     recordBuilder.addSuperinterface(IDLSerializable::class.asClassName())
+
                     val serialize = FunSpec
                         .builder("serialize")
                         .addParameter("buf", ByteBuffer::class.asTypeName())
                         .addParameter("typeTable", TypeTable::class.asTypeName())
                         .addModifiers(KModifier.OVERRIDE)
-
                     type.fields.forEachIndexed { idx, field ->
                         val fieldName = field.name ?: idx.toString()
                         serialize.addStatement(
-                            "%T.serializeIDLValue(${"${fieldName}Type".escapeIfNecessary()}, ${fieldName.escapeIfNecessary()}, buf, typeTable)\n",
+                            "%T.serializeIDLValue(${"${fieldName}Type".escapeIfNecessary()}, ${fieldName.escapeIfNecessary()}, buf, typeTable)",
                             KtSerilializer::class.asTypeName()
                         )
                     }
-
                     recordBuilder.addFunction(serialize.build())
+
+                    val sizeBytes = FunSpec
+                        .builder("sizeBytes")
+                        .addParameter("typeTable", TypeTable::class.asTypeName())
+                        .returns(Int::class)
+                        .addModifiers(KModifier.OVERRIDE)
+                    val ops = type.fields.mapIndexed { idx, field ->
+                        val fieldName = field.name ?: idx.toString()
+                        CodeBlock.of(
+                            "%T.getSizeBytesOfIDLValue(${"${fieldName}Type".escapeIfNecessary()}, ${fieldName.escapeIfNecessary()}, typeTable)",
+                            KtSerilializer::class.asTypeName()
+                        )
+                    }
+                    sizeBytes.addStatement("return " + ops.joinToString(" + ") { it.toString() })
+                    recordBuilder.addFunction(sizeBytes.build())
 
                     val record = recordBuilder.build()
                     context.currentSpec.addType(record)
@@ -152,19 +167,27 @@ object KtTranspiler {
                                 .primaryConstructor(constructor)
 
                             sealedSubclass.addSuperinterface(IDLSerializable::class.asClassName())
+
                             val serialize = FunSpec
                                 .builder("serialize")
                                 .addParameter("buf", ByteBuffer::class.asTypeName())
                                 .addParameter("typeTable", TypeTable::class.asTypeName())
                                 .addModifiers(KModifier.OVERRIDE)
-
-                            serialize.addStatement("%T.writeUnsigned(buf, ${idx}.toUInt())\n", Leb128::class)
+                            serialize.addStatement("%T.writeUnsigned(buf, ${idx}.toUInt())", Leb128::class)
                             serialize.addStatement(
                                 "%T.serializeIDLValue(valueType, value, buf, typeTable)",
                                 KtSerilializer::class.asTypeName()
                             )
-
                             sealedSubclass.addFunction(serialize.build())
+
+                            val sizeBytes = FunSpec
+                                .builder("sizeBytes")
+                                .addParameter("typeTable", TypeTable::class.asTypeName())
+                                .returns(Int::class)
+                                .addModifiers(KModifier.OVERRIDE)
+                            sizeBytes.addStatement("return %T.sizeUnsigned($idx) + %T.getSizeBytesOfIDLValue(valueType, value, typeTable)", Leb128::class, KtSerilializer::class.asTypeName())
+                            sealedSubclass.addFunction(sizeBytes.build())
+
 
                             variantBuilder.addType(sealedSubclass.build())
                         }
@@ -199,10 +222,19 @@ object KtTranspiler {
                 val invoke = FunSpec.builder("invoke")
                     .addModifiers(KModifier.OPERATOR)
                     .addModifiers(KModifier.SUSPEND)
-                    .addStatement("val buf = %T.allocate(0)", ByteBuffer::class)
 
                 val callable = TypeSpec.classBuilder(funcTypeName)
                     .superclass(IDLFunc::class)
+
+                val ops = type.arguments.mapIndexed { idx, arg ->
+                    val argName = arg.name ?: "arg$idx"
+
+                    CodeBlock.of("%T.getSizeBytesOfIDLValue(${"${argName}Type".escapeIfNecessary()}, ${argName.escapeIfNecessary()}, typeTable)", KtSerilializer::class)
+                }
+
+                invoke
+                    .addStatement("val mSize = " + ops.joinToString(" + ") { it.toString() })
+                    .addStatement("val buf = %T.allocate(mSize)", ByteBuffer::class)
 
                 type.arguments.forEachIndexed { idx, arg ->
                     val argName = arg.name ?: "arg$idx"
@@ -272,11 +304,26 @@ object KtTranspiler {
                     .initializer(typeTable.poetize())
                     .build()
 
+                val staticPayloadSize = MAGIC_PREFIX.size + typeTable.sizeBytes()
+                val staticPayloadBuf = ByteBuffer.allocate(staticPayloadSize)
+                staticPayloadBuf.put(MAGIC_PREFIX)
+                typeTable.encode(staticPayloadBuf)
+                staticPayloadBuf.rewind()
+                val staticPayload = ByteArray(staticPayloadSize)
+                staticPayloadBuf.get(staticPayload)
+                val poetizedStaticPayload = staticPayload.poetize()
+
+                val staticPayloadProp = PropertySpec
+                    .builder("staticPayload", ByteArray::class)
+                    .initializer(CodeBlock.of("%T.getDecoder().decode(\"$poetizedStaticPayload\")", Base64::class))
+                    .build()
+
                 callable
                     .primaryConstructor(constructorSpec)
                     .addProperty(servicePropSpec)
                     .addProperty(funcNamePropSpec)
                     .addProperty(typeTableProcSpec)
+                    .addProperty(staticPayloadProp)
                     .addFunction(invoke.build())
 
                 context.currentSpec.addType(callable.build())
