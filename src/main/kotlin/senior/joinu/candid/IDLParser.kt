@@ -4,7 +4,6 @@ import com.github.h0tk3y.betterParse.combinators.*
 import com.github.h0tk3y.betterParse.grammar.Grammar
 import com.github.h0tk3y.betterParse.grammar.parser
 import com.github.h0tk3y.betterParse.parser.Parser
-import java.math.BigInteger
 import java.util.regex.Pattern
 
 
@@ -106,7 +105,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pActorType: Parser<IDLType.Reference.Service> by skip(tOpBlock) and pMethTypeList and skip(
         tClBlock
     ) map { methods ->
-        IDLType.Reference.Service(methods)
+        IDLType.Reference.Service(methods.sortedBy { it.name })
     }
 
     private val pMethTypeType: Parser<IDLMethodType> by parser { pFuncType } or parser { pId }
@@ -147,36 +146,39 @@ object IDLGrammar : Grammar<IDLProgram>() {
         when (name) {
             is IDLToken.NatVal.Dec -> IDLFieldType(
                 name.value.toString(),
-                type
+                type,
+                name.value
             )
-            is IDLToken.NatVal.Hex -> IDLFieldType(name.value, type)
+            is IDLToken.NatVal.Hex -> IDLFieldType(name.value, type, name.value.drop(2).toInt(16))
         }
     }
-    private val pStrNameFieldType: Parser<IDLFieldType> by parser { pName } and skip(
-        tColon
-    ) and parser { pDataType } map { (name, type) ->
-        IDLFieldType(name.value, type)
+    private val pStrNameFieldType: Parser<IDLFieldType> by parser { pName } and skip(tColon) and
+            parser { pDataType } map { (name, type) ->
+        IDLFieldType(name.value, type, idlHash(name.value))
     }
     private val pShortNatNameFieldType: Parser<IDLFieldType> by parser { pNatVal } use {
         when (this) {
             is IDLToken.NatVal.Dec -> IDLFieldType(
                 value.toString(),
-                IDLType.Primitive.Null
+                IDLType.Primitive.Null,
+                value
             )
             is IDLToken.NatVal.Hex -> IDLFieldType(
                 value,
-                IDLType.Primitive.Null
+                IDLType.Primitive.Null,
+                value.drop(2).toInt(16)
             )
         }
     }
     private val pShortStrNameFieldType: Parser<IDLFieldType> by parser { pName } use {
         IDLFieldType(
             value,
-            IDLType.Primitive.Null
+            IDLType.Primitive.Null,
+            idlHash(value)
         )
     }
     private val pShortRecordFieldType: Parser<IDLFieldType> by parser { pDataType } use {
-        IDLFieldType(null, this)
+        IDLFieldType(null, this, -1)
     }
     private val pFieldType: Parser<IDLFieldType> by pNatNameFieldType or pStrNameFieldType or pShortNatNameFieldType or pShortStrNameFieldType or pShortRecordFieldType
 
@@ -233,10 +235,18 @@ object IDLGrammar : Grammar<IDLProgram>() {
         tClBlock
     )
     private val pRecord: Parser<IDLType.Constructive.Record> by skip(tRecord) and pFieldTypeListBlock map { fields ->
-        IDLType.Constructive.Record(fields)
+        fields.forEachIndexed { idx, field ->
+            if (field.idx == -1) field.idx = idx
+        }
+
+        IDLType.Constructive.Record(fields.sortedBy { it.idx })
     }
     private val pVariant: Parser<IDLType.Constructive.Variant> by skip(tVariant) and pFieldTypeListBlock map { fields ->
-        IDLType.Constructive.Variant(fields)
+        fields.forEachIndexed { idx, field ->
+            if (field.idx == -1) field.idx = idx
+        }
+
+        IDLType.Constructive.Variant(fields.sortedBy { it.idx })
     }
 
     // -----------------------------REFTYPE-------------------------------
@@ -260,11 +270,11 @@ object IDLGrammar : Grammar<IDLProgram>() {
         IDLToken.TextVal(text)
     }
     private val pNatDec by tDec use {
-        val value = text.filterNot { it == '_' }.toBigInteger()
+        val value = text.filterNot { it == '_' }.toInt()
         IDLToken.NatVal.Dec(value)
     }
     private val pNatHex by tHex use {
-        IDLToken.NatVal.Hex(text)
+        IDLToken.NatVal.Hex(text.filterNot { it == '_' })
     }
     private val pNatVal: Parser<IDLToken.NatVal> by pNatDec or pNatHex
 }
@@ -275,7 +285,7 @@ interface IDLTextToken {
 
 sealed class IDLToken {
     sealed class NatVal : IDLToken() {
-        class Dec(val value: BigInteger) : NatVal()
+        class Dec(val value: Int) : NatVal()
         class Hex(val value: String) : NatVal()
     }
 

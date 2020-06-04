@@ -34,7 +34,7 @@ enum class IDLOpcode(val value: Int) {
 // encode all opcodes to bytes
 
 sealed class Opcode {
-    abstract fun encode(buf: ByteBuffer)
+    abstract fun serialize(buf: ByteBuffer)
     abstract fun sizeBytes(): Int
 
     data class Integer(val value: Int, val encoding: OpcodeEncoding = OpcodeEncoding.SLEB) : Opcode() {
@@ -46,7 +46,7 @@ sealed class Opcode {
                 listOf(Integer(opcode.value, encoding))
         }
 
-        override fun encode(buf: ByteBuffer) {
+        override fun serialize(buf: ByteBuffer) {
             when (encoding) {
                 OpcodeEncoding.LEB -> Leb128.writeUnsigned(buf, value.toUInt())
                 OpcodeEncoding.SLEB -> Leb128.writeSigned(buf, value)
@@ -70,7 +70,7 @@ sealed class Opcode {
             )
         }
 
-        override fun encode(buf: ByteBuffer) {
+        override fun serialize(buf: ByteBuffer) {
             val bytes = value.toByteArray(StandardCharsets.UTF_8)
             Leb128.writeUnsigned(buf, bytes.size.toUInt())
             buf.put(bytes)

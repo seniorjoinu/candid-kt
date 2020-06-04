@@ -1,6 +1,8 @@
 package senior.joinu.candid
 
-data class Principal(override val id: ByteArray?): IDLPrincipal() {
+import senior.joinu.candid.serialize.AbstractIDLPrincipal
+
+data class Principal(override val id: ByteArray?) : AbstractIDLPrincipal() {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

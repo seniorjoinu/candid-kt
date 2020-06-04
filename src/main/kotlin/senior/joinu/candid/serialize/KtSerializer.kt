@@ -1,30 +1,37 @@
-package senior.joinu.candid
+package senior.joinu.candid.serialize
 
 import com.squareup.kotlinpoet.CodeBlock
+import senior.joinu.candid.IDLType
+import senior.joinu.candid.TypeTable
+import senior.joinu.candid.escapeIfNecessary
 import senior.joinu.candid.transpile.TC
 import senior.joinu.leb128.Leb128
 import senior.joinu.leb128.Leb128BI
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import java.util.*
 
-object KtSerilializer {
+object KtSerializer {
     fun poetizeSerializeIDLValueInvocation(varName: String) = CodeBlock.of(
         "%T.serializeIDLValue(${"${varName}Type".escapeIfNecessary()}, ${varName.escapeIfNecessary()}, ${TC.bufName}, ${TC.typeTableName})",
-        KtSerilializer::class
+        KtSerializer::class
     ).toString()
 
     fun poetizeGetSizeBytesOfIDLValueInvocation(varName: String) = CodeBlock.of(
         "%T.getSizeBytesOfIDLValue(${"${varName}Type".escapeIfNecessary()}, ${varName.escapeIfNecessary()}, ${TC.typeTableName})",
-        KtSerilializer::class
+        KtSerializer::class
     ).toString()
 
     fun serializeIDLValue(type: IDLType, value: Any?, buf: ByteBuffer, typeTable: TypeTable) {
         when (type) {
             is IDLType.Id -> {
                 val labeledType = typeTable.getTypeByLabel(type)
-                serializeIDLValue(labeledType, value, buf, typeTable)
+                serializeIDLValue(
+                    labeledType,
+                    value,
+                    buf,
+                    typeTable
+                )
             }
             is IDLType.Primitive -> {
                 when (type) {
@@ -66,7 +73,12 @@ object KtSerilializer {
                     is IDLType.Constructive.Opt -> {
                         if (value != null) {
                             buf.put(1)
-                            serializeIDLValue(type.type, value, buf, typeTable)
+                            serializeIDLValue(
+                                type.type,
+                                value,
+                                buf,
+                                typeTable
+                            )
                         } else
                             buf.put(0)
                     }
@@ -75,7 +87,12 @@ object KtSerilializer {
                         Leb128.writeUnsigned(buf, listValue.size.toUInt())
 
                         for (listValueEntry in listValue) {
-                            serializeIDLValue(type.type, listValueEntry, buf, typeTable)
+                            serializeIDLValue(
+                                type.type,
+                                listValueEntry,
+                                buf,
+                                typeTable
+                            )
                         }
                     }
                     is IDLType.Constructive.Blob -> {
@@ -95,27 +112,47 @@ object KtSerilializer {
             is IDLType.Reference -> {
                 when (type) {
                     is IDLType.Reference.Service -> {
-                        val serviceValue = value as IDLService
+                        val serviceValue = value as AbstractIDLService
                         if (serviceValue.id != null) {
                             buf.put(1)
-                            serializeIDLValue(IDLType.Constructive.Blob, serviceValue.id, buf, typeTable)
+                            serializeIDLValue(
+                                IDLType.Constructive.Blob,
+                                serviceValue.id,
+                                buf,
+                                typeTable
+                            )
                         } else
                             buf.put(0)
                     }
                     is IDLType.Reference.Func -> {
-                        val funcValue = value as IDLFunc
+                        val funcValue = value as AbstractIDLFunc
                         if (funcValue.funcName != null && funcValue.service != null) {
                             buf.put(1)
-                            serializeIDLValue(IDLType.Reference.Service(emptyList()), funcValue.service, buf, typeTable)
-                            serializeIDLValue(IDLType.Primitive.Text, funcValue.funcName, buf, typeTable)
+                            serializeIDLValue(
+                                IDLType.Reference.Service(emptyList()),
+                                funcValue.service,
+                                buf,
+                                typeTable
+                            )
+                            serializeIDLValue(
+                                IDLType.Primitive.Text,
+                                funcValue.funcName,
+                                buf,
+                                typeTable
+                            )
                         } else
                             buf.put(0)
                     }
                     is IDLType.Reference.Principal -> {
-                        val principalValue = value as IDLPrincipal
+                        val principalValue = value as AbstractIDLPrincipal
                         if (principalValue.id != null) {
                             buf.put(1)
-                            serializeIDLValue(IDLType.Constructive.Blob, principalValue.id, buf, typeTable)
+                            serializeIDLValue(
+                                IDLType.Constructive.Blob,
+                                principalValue.id,
+                                buf,
+                                typeTable
+                            )
                         } else
                             buf.put(0)
                     }
@@ -128,7 +165,11 @@ object KtSerilializer {
         return when (type) {
             is IDLType.Id -> {
                 val labeledType = typeTable.getTypeByLabel(type)
-                getSizeBytesOfIDLValue(labeledType, value, typeTable)
+                getSizeBytesOfIDLValue(
+                    labeledType,
+                    value,
+                    typeTable
+                )
             }
             is IDLType.Primitive -> {
                 when (type) {
@@ -161,7 +202,11 @@ object KtSerilializer {
                 when (type) {
                     is IDLType.Constructive.Opt -> {
                         if (value != null) {
-                            Byte.SIZE_BYTES + getSizeBytesOfIDLValue(type.type, value, typeTable)
+                            Byte.SIZE_BYTES + getSizeBytesOfIDLValue(
+                                type.type,
+                                value,
+                                typeTable
+                            )
                         } else
                             Byte.SIZE_BYTES
                     }
@@ -169,7 +214,13 @@ object KtSerilializer {
                         val listValue = value as List<Any?>
                         val s = Leb128.sizeUnsigned(listValue.size)
 
-                        listValue.fold(s) { acc, it -> getSizeBytesOfIDLValue(type.type, it, typeTable) }
+                        listValue.fold(s) { acc, it ->
+                            getSizeBytesOfIDLValue(
+                                type.type,
+                                it,
+                                typeTable
+                            )
+                        }
                     }
                     is IDLType.Constructive.Blob -> {
                         val bytesValue = value as ByteArray
@@ -186,7 +237,7 @@ object KtSerilializer {
             is IDLType.Reference -> {
                 when (type) {
                     is IDLType.Reference.Service -> {
-                        val serviceValue = value as IDLService
+                        val serviceValue = value as AbstractIDLService
                         if (serviceValue.id != null) {
                             Byte.SIZE_BYTES + getSizeBytesOfIDLValue(
                                 IDLType.Constructive.Blob,
@@ -197,7 +248,7 @@ object KtSerilializer {
                             Byte.SIZE_BYTES
                     }
                     is IDLType.Reference.Func -> {
-                        val funcValue = value as IDLFunc
+                        val funcValue = value as AbstractIDLFunc
                         if (funcValue.funcName != null && funcValue.service != null) {
                             Byte.SIZE_BYTES +
                                     getSizeBytesOfIDLValue(
@@ -205,20 +256,29 @@ object KtSerilializer {
                                         funcValue.service,
                                         typeTable
                                     ) +
-                                    getSizeBytesOfIDLValue(IDLType.Primitive.Text, funcValue.funcName, typeTable)
+                                    getSizeBytesOfIDLValue(
+                                        IDLType.Primitive.Text,
+                                        funcValue.funcName,
+                                        typeTable
+                                    )
                         } else
                             Byte.SIZE_BYTES
                     }
                     is IDLType.Reference.Principal -> {
-                        val principalValue = value as IDLPrincipal
+                        val principalValue = value as AbstractIDLPrincipal
                         if (principalValue.id != null) {
                             Byte.SIZE_BYTES +
-                                    getSizeBytesOfIDLValue(IDLType.Constructive.Blob, principalValue.id, typeTable)
+                                    getSizeBytesOfIDLValue(
+                                        IDLType.Constructive.Blob,
+                                        principalValue.id,
+                                        typeTable
+                                    )
                         } else
                             Byte.SIZE_BYTES
                     }
                 }
             }
+            else -> throw RuntimeException("Unable to get size of Custom or Future IDL type")
         }
     }
 }
@@ -228,17 +288,60 @@ interface IDLSerializable {
     fun sizeBytes(typeTable: TypeTable): Int
 }
 
-abstract class IDLService {
+abstract class AbstractIDLService {
     abstract val id: ByteArray?
 }
 
-abstract class IDLFunc {
-    abstract val service: IDLService?
+data class SimpleIDLService(override val id: ByteArray?) : AbstractIDLService() {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as SimpleIDLService
+
+        if (id != null) {
+            if (other.id == null) return false
+            if (!id.contentEquals(other.id)) return false
+        } else if (other.id != null) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id?.contentHashCode() ?: 0
+    }
+}
+
+abstract class AbstractIDLFunc {
+    abstract val service: AbstractIDLService?
     abstract val funcName: String?
 }
 
-abstract class IDLPrincipal {
+data class SimpleIDLFunc(
+    override val funcName: String?,
+    override val service: AbstractIDLService?
+) : AbstractIDLFunc()
+
+abstract class AbstractIDLPrincipal {
     abstract val id: ByteArray?
 }
 
-fun ByteArray.poetize() = Base64.getEncoder().encodeToString(this)
+data class SimpleIDLPrincipal(override val id: ByteArray?) : AbstractIDLPrincipal() {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as SimpleIDLPrincipal
+
+        if (id != null) {
+            if (other.id == null) return false
+            if (!id.contentEquals(other.id)) return false
+        } else if (other.id != null) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id?.contentHashCode() ?: 0
+    }
+}
