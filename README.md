@@ -24,3 +24,4 @@ You can inspect currently generated code in the `test` dir - result of input `.d
 | type T = func (T1) -> T2 | `class T { suspend operator fun invoke(arg0: T1): T2 }` |
 | type T = service { a: SomeFunc } | `class T { val a: SomeFunc }` |
 | principal | `Principal` class |
+Unnamed IDL types are transpiled into anonymous Kotlin types.
