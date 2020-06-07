@@ -1,10 +1,11 @@
 package senior.joinu.candid.serialize
 
+import com.squareup.kotlinpoet.CodeBlock
 import senior.joinu.candid.*
+import senior.joinu.candid.transpile.TC
 import senior.joinu.leb128.Leb128
 import senior.joinu.leb128.Leb128BI
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
 
 data class DeserializationContext(
@@ -15,11 +16,11 @@ data class DeserializationContext(
 data class IDLRawValue(val type: IDLType, val content: Any?)
 
 object IDLDeserializer {
-    fun deserialize(buf: ByteBuffer): List<IDLRawValue> {
-        buf.order(ByteOrder.LITTLE_ENDIAN)
-
-        val context = deserializeUntilM(buf)
-        return deserializeM(buf, context)
+    fun poetizeDeserializeIDLValueInvocation(type: String, companion: String = "null"): String {
+        return CodeBlock.of(
+            "%T.deserializeIDLValue(${TC.bufName}, $type, ${TC.typeTableName}, $companion)",
+            IDLDeserializer::class
+        ).toString()
     }
 
     fun deserializeUntilM(buf: ByteBuffer): DeserializationContext {
@@ -30,15 +31,12 @@ object IDLDeserializer {
         return DeserializationContext(typeTable, types)
     }
 
-    fun deserializeM(buf: ByteBuffer, context: DeserializationContext): List<IDLRawValue> {
-        return context.types.map { type ->
-            val value = readIDLValue(buf, type, context.typeTable)
-
-            IDLRawValue(type, value)
-        }
-    }
-
-    fun readIDLValue(buf: ByteBuffer, type: IDLType, typeTable: TypeTable): Any? {
+    fun deserializeIDLValue(
+        buf: ByteBuffer,
+        type: IDLType,
+        typeTable: TypeTable,
+        companion: IDLDeserializable<*>? = null
+    ): Any? {
         return when (type) {
             is IDLType.Primitive -> when (type) {
                 is IDLType.Primitive.Natural -> Leb128BI.readNat(buf)
@@ -77,14 +75,14 @@ object IDLDeserializer {
             is IDLType.Constructive -> when (type) {
                 is IDLType.Constructive.Opt -> {
                     when (buf.get()) {
-                        1.toByte() -> readIDLValue(buf, type.type, typeTable)
+                        1.toByte() -> deserializeIDLValue(buf, type.type, typeTable)
                         0.toByte() -> null
                         else -> throw RuntimeException("Invalid present flag met during optional value deserialization")
                     }
                 }
                 is IDLType.Constructive.Vec -> {
                     val size = Leb128.readUnsigned(buf).toInt()
-                    (0..size).map { readIDLValue(buf, type.type, typeTable) }
+                    (0..size).map { deserializeIDLValue(buf, type.type, typeTable) }
                 }
                 is IDLType.Constructive.Blob -> {
                     val size = Leb128.readUnsigned(buf).toInt()
@@ -92,20 +90,18 @@ object IDLDeserializer {
                     buf.get(bytes)
                 }
                 is IDLType.Constructive.Record -> {
-                    type.fields.associate { fieldType ->
-                        fieldType.idx to readIDLValue(buf, fieldType.type, typeTable)
-                    }
+                    companion!!.deserialize(buf, typeTable)
                 }
                 is IDLType.Constructive.Variant -> {
                     type.fields.associate { fieldType ->
-                        fieldType.idx to readIDLValue(buf, fieldType.type, typeTable)
+                        fieldType.idx to deserializeIDLValue(buf, fieldType.type, typeTable)
                     }
                 }
             }
             is IDLType.Reference -> when (type) {
                 is IDLType.Reference.Service -> {
                     val bytes = when (buf.get()) {
-                        1.toByte() -> readIDLValue(buf, IDLType.Constructive.Blob, typeTable)
+                        1.toByte() -> deserializeIDLValue(buf, IDLType.Constructive.Blob, typeTable)
                         0.toByte() -> null
                         else -> throw RuntimeException("Invalid notOpaque flag met during service deserialization")
                     }
@@ -114,8 +110,8 @@ object IDLDeserializer {
                 is IDLType.Reference.Func -> {
                     val (service, funcName) = when (buf.get()) {
                         1.toByte() -> Pair(
-                            readIDLValue(buf, IDLType.Reference.Service(emptyList()), typeTable),
-                            readIDLValue(buf, IDLType.Primitive.Text, typeTable)
+                            deserializeIDLValue(buf, IDLType.Reference.Service(emptyList()), typeTable),
+                            deserializeIDLValue(buf, IDLType.Primitive.Text, typeTable)
                         )
                         0.toByte() -> Pair(null, null)
                         else -> throw RuntimeException("Invalid notOpaque flag met during function deserialization")
@@ -124,7 +120,7 @@ object IDLDeserializer {
                 }
                 is IDLType.Reference.Principal -> {
                     val bytes = when (buf.get()) {
-                        1.toByte() -> readIDLValue(buf, IDLType.Constructive.Blob, typeTable)
+                        1.toByte() -> deserializeIDLValue(buf, IDLType.Constructive.Blob, typeTable)
                         0.toByte() -> null
                         else -> throw RuntimeException("Invalid notOpaque flag met during principal deserialization")
                     }
@@ -143,7 +139,7 @@ object IDLDeserializer {
                     val customType = typeTable.registry.getOrNull(type.opcode)
                         ?: throw RuntimeException("Unknown type met during deserialization of a type from the type table")
 
-                    readIDLValue(buf, customType, typeTable)
+                    deserializeIDLValue(buf, customType, typeTable)
                 }
             }
             else -> throw RuntimeException("Unable to deserialize - invalid encoding")
@@ -301,4 +297,8 @@ data class IDLFutureValue(val opcode: Int, val data: ByteArray) {
         result = 31 * result + data.contentHashCode()
         return result
     }
+}
+
+interface IDLDeserializable<T> {
+    fun deserialize(buf: ByteBuffer, typeTable: TypeTable): T
 }

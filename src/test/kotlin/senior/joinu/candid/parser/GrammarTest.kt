@@ -33,8 +33,6 @@ class GrammarTest {
         val fileSpec = ktContext.currentSpec.build()
 
         fileSpec.writeTo(System.out)
-        println(ktContext.typeTable.labels)
-        println(ktContext.typeTable.registry.mapIndexed { index, idlType -> "$index: $idlType" })
     }
 }
 

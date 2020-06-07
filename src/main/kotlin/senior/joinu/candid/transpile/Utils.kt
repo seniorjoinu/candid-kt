@@ -1,11 +1,9 @@
 package senior.joinu.candid.transpile
 
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import senior.joinu.candid.*
-import senior.joinu.candid.serialize.AbstractIDLFunc
-import senior.joinu.candid.serialize.AbstractIDLService
-import senior.joinu.candid.serialize.IDLSerializable
-import senior.joinu.candid.serialize.KtSerializer
+import senior.joinu.candid.serialize.*
 import senior.joinu.leb128.Leb128
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -32,44 +30,62 @@ class TranspileContext(val packageName: String, val fileName: String) {
 fun transpileRecord(name: ClassName?, type: IDLType.Constructive.Record, context: TranspileContext): ClassName {
     val recordName = name ?: context.nextAnonymousTypeName()
 
-    val recordBuilder = if (type.fields.isEmpty()) {
-        TypeSpec.objectBuilder(recordName)
-    } else {
-        val dataClassBuilder = TypeSpec.classBuilder(recordName).addModifiers(KModifier.DATA)
-        val constructorBuilder = FunSpec.constructorBuilder()
-        type.fields.forEach { field ->
-            val fieldName = field.name ?: field.idx.toString()
-            val fieldTypeName = KtTranspiler.transpileType(field.type, context)
-
-            createRecordField(dataClassBuilder, fieldName, field.type, fieldTypeName, constructorBuilder)
-        }
-
-        dataClassBuilder.primaryConstructor(constructorBuilder.build())
-    }
-
-    recordBuilder.addSuperinterface(IDLSerializable::class.asClassName())
     val (serializeFunc, sizeBytesFunc) = createIDLSerializableMethods()
+    var sizeBytesStatement = "return 0"
 
-    // serialize body
+    val recordCompanionBuilder = TypeSpec.companionObjectBuilder()
+        .addSuperinterface(IDLDeserializable::class.asClassName().parameterizedBy(recordName))
+    val deserializeFunc = FunSpec.builder("deserialize")
+        .addModifiers(KModifier.OVERRIDE)
+        .addParameter(TC.bufName, ByteBuffer::class)
+        .addParameter(TC.typeTableName, TypeTable::class)
+        .returns(recordName)
+    val deserializeFuncStatements = mutableListOf<CodeBlock>()
+
+    val recordBuilder = TypeSpec.classBuilder(recordName).addModifiers(KModifier.OPEN)
+    val constructorBuilder = FunSpec.constructorBuilder()
     type.fields.forEach { field ->
         val fieldName = field.name ?: field.idx.toString()
-        serializeFunc.addStatement(KtSerializer.poetizeSerializeIDLValueInvocation(fieldName))
-    }
-    // sizeBytesBody
-    val sizeBytesStatement = if (type.fields.isEmpty()) {
-        "return 0"
-    } else {
-        type.fields.fold("return ") { acc, field ->
-            val fieldName = field.name ?: field.idx.toString()
-            val calcSizeStatement = KtSerializer.poetizeGetSizeBytesOfIDLValueInvocation(fieldName)
+        val fieldTypeClassName = KtTranspiler.transpileType(field.type, context)
 
-            "$acc + $calcSizeStatement"
+        createField(recordBuilder, fieldName, fieldTypeClassName, constructorBuilder)
+        createTypeFieldInCompanion(fieldName, field.type, recordCompanionBuilder)
+
+        serializeFunc.addStatement(KtSerializer.poetizeSerializeIDLValueInvocation(fieldName))
+        val calcSizeStatement = KtSerializer.poetizeGetSizeBytesOfIDLValueInvocation(fieldName)
+        sizeBytesStatement += " + $calcSizeStatement"
+
+        val fieldTypeName = "${fieldName}Type".escapeIfNecessary()
+        val escapedFieldName = fieldName.escapeIfNecessary()
+        val companion = if (field.type is IDLType.Constructive.Record) {
+            CodeBlock.of("%T.Companion", fieldTypeClassName).toString()
+        } else {
+            "null"
         }
+        deserializeFuncStatements.add(
+            CodeBlock.of(
+                "$escapedFieldName = ${IDLDeserializer.poetizeDeserializeIDLValueInvocation(
+                    fieldTypeName,
+                    companion
+                )} as %T",
+                fieldTypeClassName
+            )
+        )
     }
+
+    val deserializeStatement =
+        CodeBlock.of("return %T(${deserializeFuncStatements.joinToString { it.toString() }})", recordName).toString()
+    deserializeFunc.addStatement(deserializeStatement)
+    recordCompanionBuilder.addFunction(deserializeFunc.build())
     sizeBytesFunc.addStatement(sizeBytesStatement)
 
-    recordBuilder.addFunction(serializeFunc.build())
-    recordBuilder.addFunction(sizeBytesFunc.build())
+    recordBuilder.addSuperinterface(IDLSerializable::class.asClassName())
+
+    recordBuilder
+        .primaryConstructor(constructorBuilder.build())
+        .addFunction(serializeFunc.build())
+        .addFunction(sizeBytesFunc.build())
+        .addType(recordCompanionBuilder.build())
 
     context.currentSpec.addType(recordBuilder.build())
 
@@ -87,6 +103,7 @@ fun transpileVariant(name: ClassName?, type: IDLType.Constructive.Variant, conte
             val fieldName = field.name ?: field.idx.toString()
             val fieldTypeName = KtTranspiler.transpileType(field.type, context)
 
+            val sealedSubclassCompanionBuilder = TypeSpec.companionObjectBuilder()
             val constructor = FunSpec
                 .constructorBuilder()
             val sealedSubclass = TypeSpec
@@ -94,7 +111,8 @@ fun transpileVariant(name: ClassName?, type: IDLType.Constructive.Variant, conte
                 .addModifiers(KModifier.DATA)
                 .superclass(variantName)
 
-            createRecordField(sealedSubclass, "value", field.type, fieldTypeName, constructor)
+            createField(sealedSubclass, "value", fieldTypeName, constructor)
+            createTypeFieldInCompanion("value", field.type, sealedSubclassCompanionBuilder)
 
             sealedSubclass
                 .primaryConstructor(constructor.build())
@@ -110,8 +128,10 @@ fun transpileVariant(name: ClassName?, type: IDLType.Constructive.Variant, conte
                 Leb128::class
             )
 
-            sealedSubclass.addFunction(serializeFunc.build())
-            sealedSubclass.addFunction(sizeBytesFunc.build())
+            sealedSubclass
+                .addFunction(serializeFunc.build())
+                .addFunction(sizeBytesFunc.build())
+                .addType(sealedSubclassCompanionBuilder.build())
 
             variantBuilder.addType(sealedSubclass.build())
         }
@@ -144,6 +164,7 @@ fun transpileVariant(name: ClassName?, type: IDLType.Constructive.Variant, conte
 fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: TranspileContext): ClassName {
     val funcTypeName = name ?: context.nextAnonymousFuncTypeName()
 
+    val callableCompanionBuilder = TypeSpec.companionObjectBuilder()
     val callable = TypeSpec.classBuilder(funcTypeName).superclass(AbstractIDLFunc::class)
     val invoke = FunSpec.builder("invoke").addModifiers(KModifier.SUSPEND, KModifier.OPERATOR)
 
@@ -174,7 +195,7 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
         val argTypeName = KtTranspiler.transpileType(arg.type, context)
 
         invoke.addParameter(argName, argTypeName)
-        createRecordField(callable, argName, arg.type, null, null)
+        createTypeFieldInCompanion(argName, arg.type, callableCompanionBuilder)
         invoke.addStatement(KtSerializer.poetizeSerializeIDLValueInvocation(argName))
 
         context.typeTable.copyLabelsForType(arg.type, typeTable)
@@ -183,11 +204,6 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
 
     // ---------- transpile function result value --------------
     val resultName = when {
-        type.results.size == 1 -> {
-            val result = type.results.first()
-
-            KtTranspiler.transpileType(result.type, context)
-        }
         type.results.isNotEmpty() -> {
             val resultClassName = context.createResultValueTypeName(funcTypeName.simpleName)
             val resultClassBuilder = TypeSpec.classBuilder(resultClassName).addModifiers(KModifier.DATA)
@@ -195,7 +211,7 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
             val constructorBuilder = FunSpec.constructorBuilder()
             type.results.forEachIndexed { idx, res ->
                 val resName = res.name ?: "$idx"
-                val resTypeName = KtTranspiler.transpileType(type, context)
+                val resTypeName = KtTranspiler.transpileType(res.type, context)
 
                 constructorBuilder.addParameter(resName, resTypeName)
                 val propertyBuilder = PropertySpec
@@ -219,18 +235,16 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     // ----------- implement of IDLFunc ------------------
     val constructorSpec = FunSpec.constructorBuilder()
 
-    createRecordField(
+    createField(
         callable,
         "service",
-        null,
         AbstractIDLService::class.asTypeName().copy(true),
         constructorSpec,
         true
     )
-    createRecordField(
+    createField(
         callable,
         "funcName",
-        null,
         String::class.asTypeName().copy(true),
         constructorSpec,
         true
@@ -263,10 +277,13 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
         .initializer(CodeBlock.of("%T.getDecoder().decode(\"$poetizedStaticPayload\")", Base64::class))
         .build()
 
-    callable
+    callableCompanionBuilder
         .addProperty(typeTableProcSpec)
         .addProperty(staticPayloadProp)
+
+    callable
         .addFunction(invoke.build())
+        .addType(callableCompanionBuilder.build())
     // --------------------------------------------------
 
     context.currentSpec.addType(callable.build())
@@ -280,10 +297,9 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
 
     val constructorSpec = FunSpec.constructorBuilder()
 
-    createRecordField(
+    createField(
         actorClassBuilder,
         "id",
-        null,
         ByteArray::class.asTypeName().copy(true),
         constructorSpec,
         true
@@ -336,34 +352,32 @@ fun createIDLSerializableMethods(): Pair<FunSpec.Builder, FunSpec.Builder> {
     return serialize to sizeBytes
 }
 
-fun createRecordField(
+fun createTypeFieldInCompanion(name: String, type: IDLType, companion: TypeSpec.Builder) {
+    val fieldType = PropertySpec
+        .builder("${name}Type", IDLType::class.asTypeName())
+        .initializer(type.poetize())
+
+    companion.addProperty(fieldType.build())
+}
+
+fun createField(
     record: TypeSpec.Builder,
     name: String,
-    type: IDLType?,
-    typeName: TypeName?,
+    typeName: TypeName,
     constructor: FunSpec.Builder?,
     override: Boolean = false
 ) {
-    if (typeName != null) {
-        val field = PropertySpec
-            .builder(name, typeName)
+    val field = PropertySpec
+        .builder(name, typeName)
 
-        if (override) {
-            field.addModifiers(KModifier.OVERRIDE)
-        }
-
-        if (constructor != null) {
-            field.initializer(name)
-            constructor.addParameter(name, typeName)
-        }
-
-        record.addProperty(field.build())
+    if (override) {
+        field.addModifiers(KModifier.OVERRIDE)
     }
 
-    if (type != null) {
-        val fieldType = PropertySpec
-            .builder("${name}Type", IDLType::class.asTypeName())
-            .initializer(type.poetize())
-        record.addProperty(fieldType.build())
+    if (constructor != null) {
+        field.initializer(name)
+        constructor.addParameter(name, typeName)
     }
+
+    record.addProperty(field.build())
 }
