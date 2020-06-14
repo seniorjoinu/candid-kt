@@ -13,7 +13,7 @@ import java.util.*
 
 typealias my_type = UByte
 
-class List(
+open class List(
     val head: BigInteger,
     val tail: List?
 ) : IDLSerializable {
@@ -229,7 +229,7 @@ class broker(
     val find: AnonFunc1 = AnonFunc1(this, "find")
 }
 
-class AnonIDLType1(
+open class AnonIDLType1(
     val `0`: BigInteger,
     val `2`: UByte,
     val `0x2a`: BigInteger
@@ -294,8 +294,16 @@ sealed class AnonIDLType2 : IDLSerializable {
                     typeTable
                 )
 
-        companion object {
+        companion object : IDLDeserializable<AnonIDLType2> {
             val valueType: IDLType = senior.joinu.candid.IDLType.Primitive.Null
+
+            override fun deserialize(buf: ByteBuffer, typeTable: TypeTable): `0x2a` =
+                `0x2a`(
+                    senior.joinu.candid.serialize.IDLDeserializer.deserializeIDLValue(
+                        buf, valueType,
+                        typeTable, null
+                    ) as Null
+                )
         }
     }
 
@@ -313,8 +321,16 @@ sealed class AnonIDLType2 : IDLSerializable {
                     typeTable
                 )
 
-        companion object {
+        companion object : IDLDeserializable<AnonIDLType2> {
             val valueType: IDLType = senior.joinu.candid.IDLType.Primitive.Null
+
+            override fun deserialize(buf: ByteBuffer, typeTable: TypeTable): A =
+                A(
+                    senior.joinu.candid.serialize.IDLDeserializer.deserializeIDLValue(
+                        buf, valueType,
+                        typeTable, null
+                    ) as Null
+                )
         }
     }
 
@@ -332,8 +348,16 @@ sealed class AnonIDLType2 : IDLSerializable {
                     typeTable
                 )
 
-        companion object {
+        companion object : IDLDeserializable<AnonIDLType2> {
             val valueType: IDLType = senior.joinu.candid.IDLType.Primitive.Null
+
+            override fun deserialize(buf: ByteBuffer, typeTable: TypeTable): B =
+                B(
+                    senior.joinu.candid.serialize.IDLDeserializer.deserializeIDLValue(
+                        buf, valueType,
+                        typeTable, null
+                    ) as Null
+                )
         }
     }
 
@@ -351,13 +375,34 @@ sealed class AnonIDLType2 : IDLSerializable {
                     typeTable
                 )
 
-        companion object {
+        companion object : IDLDeserializable<AnonIDLType2> {
             val valueType: IDLType = senior.joinu.candid.IDLType.Primitive.Null
+
+            override fun deserialize(buf: ByteBuffer, typeTable: TypeTable): C =
+                C(
+                    senior.joinu.candid.serialize.IDLDeserializer.deserializeIDLValue(
+                        buf, valueType,
+                        typeTable, null
+                    ) as Null
+                )
+        }
+    }
+
+    companion object : IDLDeserializable<AnonIDLType2> {
+        val idxToCompanion: Map<Int, IDLDeserializable<AnonIDLType2>> = mapOf(
+            42 to `0x2a`.Companion, 65
+                    to A.Companion, 66 to B.Companion, 67 to C.Companion
+        )
+
+        override fun deserialize(buf: ByteBuffer, typeTable: TypeTable): AnonIDLType2 {
+            val idx = Leb128.readUnsigned(buf).toInt()
+            val companion = idxToCompanion[idx]!!
+            return companion.deserialize(buf, typeTable)
         }
     }
 }
 
-class nested(
+open class nested(
     val `0`: BigInteger,
     val `1`: BigInteger,
     val `2`: AnonIDLType1,
@@ -574,8 +619,16 @@ sealed class AnonIDLType3 : IDLSerializable {
                     typeTable
                 )
 
-        companion object {
+        companion object : IDLDeserializable<AnonIDLType3> {
             val valueType: IDLType = senior.joinu.candid.IDLType.Primitive.Natural
+
+            override fun deserialize(buf: ByteBuffer, typeTable: TypeTable): A =
+                A(
+                    senior.joinu.candid.serialize.IDLDeserializer.deserializeIDLValue(
+                        buf, valueType,
+                        typeTable, null
+                    ) as BigInteger
+                )
         }
     }
 
@@ -593,14 +646,35 @@ sealed class AnonIDLType3 : IDLSerializable {
                     typeTable
                 )
 
-        companion object {
+        companion object : IDLDeserializable<AnonIDLType3> {
             val valueType: IDLType =
                 senior.joinu.candid.IDLType.Constructive.Opt(senior.joinu.candid.IDLType.Primitive.Text)
+
+            override fun deserialize(buf: ByteBuffer, typeTable: TypeTable): B =
+                B(
+                    senior.joinu.candid.serialize.IDLDeserializer.deserializeIDLValue(
+                        buf, valueType,
+                        typeTable, null
+                    ) as String?
+                )
+        }
+    }
+
+    companion object : IDLDeserializable<AnonIDLType3> {
+        val idxToCompanion: Map<Int, IDLDeserializable<AnonIDLType3>> = mapOf(
+            65 to A.Companion, 66 to
+                    B.Companion
+        )
+
+        override fun deserialize(buf: ByteBuffer, typeTable: TypeTable): AnonIDLType3 {
+            val idx = Leb128.readUnsigned(buf).toInt()
+            val companion = idxToCompanion[idx]!!
+            return companion.deserialize(buf, typeTable)
         }
     }
 }
 
-class AnonIDLType5 : IDLSerializable {
+open class AnonIDLType5 : IDLSerializable {
     override fun serialize(buf: ByteBuffer, typeTable: TypeTable) {
     }
 
@@ -611,7 +685,7 @@ class AnonIDLType5 : IDLSerializable {
     }
 }
 
-class AnonIDLType4(
+open class AnonIDLType4(
     val `0x2a`: AnonIDLType5,
     val id: BigInteger
 ) : IDLSerializable {
@@ -737,3 +811,4 @@ class server(
 
     val i: f = f(this, "i")
 }
+

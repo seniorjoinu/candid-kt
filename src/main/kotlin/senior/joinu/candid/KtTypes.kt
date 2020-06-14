@@ -1,26 +1,17 @@
 package senior.joinu.candid
 
-import senior.joinu.candid.serialize.AbstractIDLPrincipal
+open class SimpleIDLService(
+    val id: ByteArray?
+)
 
-data class Principal(override val id: ByteArray?) : AbstractIDLPrincipal() {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+open class SimpleIDLFunc(
+    val funcName: String?,
+    val service: SimpleIDLService?
+)
 
-        other as Principal
-
-        if (id != null) {
-            if (other.id == null) return false
-            if (!id.contentEquals(other.id)) return false
-        } else if (other.id != null) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return id?.contentHashCode() ?: 0
-    }
-}
+open class SimpleIDLPrincipal(
+    val id: ByteArray?
+)
 
 object Null
 object Reserved

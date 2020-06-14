@@ -62,31 +62,31 @@ object Leb128 {
         return result
     }
 
-    fun readUnsigned(buf: ByteBuffer): UInt {
-        var result = 0u
-        var cur: UInt
-        var count = 0u
+    fun readUnsigned(buf: ByteBuffer): Int {
+        var result = 0
+        var cur: Int
+        var count = 0
         do {
-            cur = buf.int.toUInt() and nineBits.toUInt()
-            result = result or (cur and sevenBits.toUInt() shl (count * 7u).toInt())
+            cur = buf.int and nineBits
+            result = result or (cur and sevenBits shl (count * 7))
             count++
-        } while (cur and eightBits.toUInt() == eightBits.toUInt() && count < 5u)
-        if (cur and eightBits.toUInt() == eightBits.toUInt()) {
+        } while (cur and eightBits == eightBits && count < 5)
+        if (cur and eightBits == eightBits) {
             throw Leb128Exception("invalid LEB128 sequence")
         }
         return result
     }
 
-    fun writeUnsigned(buf: ByteBuffer, nat: UInt) {
+    fun writeUnsigned(buf: ByteBuffer, nat: Int) {
         var value = nat
 
         var remaining = value shr 7
-        while (remaining != 0u) {
-            buf.put((value and sevenBits.toUInt() or eightBits.toUInt()).toByte())
+        while (remaining != 0) {
+            buf.put((value and sevenBits or eightBits).toByte())
             value = remaining
             remaining = remaining shr 7
         }
-        buf.put((value and sevenBits.toUInt()).toByte())
+        buf.put((value and sevenBits).toByte())
     }
 
     fun writeSigned(buf: ByteBuffer, int: Int) {

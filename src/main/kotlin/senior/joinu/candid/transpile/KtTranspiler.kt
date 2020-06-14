@@ -83,7 +83,7 @@ object KtTranspiler {
             is IDLType.Reference -> when (type) {
                 is IDLType.Reference.Func -> transpileFunc(name, type, context)
                 is IDLType.Reference.Service -> transpileService(name, type, context)
-                is IDLType.Reference.Principal -> Principal::class.asClassName()
+                is IDLType.Reference.Principal -> SimpleIDLPrincipal::class.asClassName()
             }
             else -> throw RuntimeException("Unable to transpile - invalid input")
         }
