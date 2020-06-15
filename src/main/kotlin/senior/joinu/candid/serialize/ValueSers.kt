@@ -435,13 +435,8 @@ class RecordValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<RecordSe
     }
 
     override fun poetize(): String {
-        val poetizedInnerSers = if (innerSers.isEmpty()) {
-            "emptyMap()"
-        } else {
-            innerSers.entries.joinToString(
-                prefix = "mapOf(",
-                postfix = ")"
-            ) { (key, ser) -> "$key to ${ser.poetize()}" }
+        val poetizedInnerSers = innerSers.entries.joinToString(prefix = "mapOf(", postfix = ")") { (key, ser) ->
+            "$key to ${ser.poetize()}"
         }
         return CodeBlock.of("%T(${poetizedInnerSers})", RecordValueSer::class).toString()
     }
@@ -477,11 +472,10 @@ class VariantValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<Variant
     }
 
     override fun poetize(): String {
-        val poetizedInnerSers = if (innerSers.isEmpty()) {
-            "emptyMap()"
-        } else {
-            innerSers.entries.joinToString { (idx, ser) -> "$idx to ${ser.poetize()}" }
+        val poetizedInnerSers = innerSers.entries.joinToString(prefix = "mapOf(", postfix = ")") { (idx, ser) ->
+            "$idx to ${ser.poetize()}"
         }
+
         return CodeBlock.of("%T(${poetizedInnerSers})", VariantValueSer::class).toString()
     }
 }
