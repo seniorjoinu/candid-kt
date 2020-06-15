@@ -1,6 +1,9 @@
 package senior.joinu.candid.serialize
 
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.*
 import senior.joinu.leb128.Leb128
 import senior.joinu.leb128.Leb128BI
@@ -407,20 +410,25 @@ object BlobValueSer : ValueSer<ByteArray> {
     }
 }
 
-class RecordValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<Map<Int, Any>> {
-    override fun calcSizeBytes(value: Map<Int, Any>): Int {
+typealias RecordSerIntermediate = Map<Int, Any>
+
+val RecordSerIntermediate_typeName =
+    Map::class.asClassName().parameterizedBy(Int::class.asTypeName(), Any::class.asTypeName())
+
+class RecordValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<RecordSerIntermediate> {
+    override fun calcSizeBytes(value: RecordSerIntermediate): Int {
         return innerSers.entries
             .map { (idx, ser) -> ser.calcSizeBytes(value[idx]!!) }
             .sum()
     }
 
-    override fun ser(buf: ByteBuffer, value: Map<Int, Any>) {
+    override fun ser(buf: ByteBuffer, value: RecordSerIntermediate) {
         innerSers.entries.forEach { (idx, ser) ->
             ser.ser(buf, value[idx]!!)
         }
     }
 
-    override fun deser(buf: ByteBuffer): Map<Int, Any> {
+    override fun deser(buf: ByteBuffer): RecordSerIntermediate {
         return innerSers.entries.associate { (idx, ser) ->
             idx to ser.deser(buf)
         }
@@ -439,14 +447,19 @@ class RecordValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<Map<Int,
     }
 }
 
-class VariantValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<Pair<Int, Any>> {
-    override fun calcSizeBytes(value: Pair<Int, Any>): Int {
+typealias VariantSerIntermediate = Pair<Int, Any>
+
+val VariantSerIntermediate_typeName =
+    Pair::class.asTypeName().parameterizedBy(Int::class.asTypeName(), Any::class.asTypeName())
+
+class VariantValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<VariantSerIntermediate> {
+    override fun calcSizeBytes(value: VariantSerIntermediate): Int {
         val (idx, v) = value
 
         return Leb128.sizeUnsigned(idx) + innerSers[idx]!!.calcSizeBytes(v)
     }
 
-    override fun ser(buf: ByteBuffer, value: Pair<Int, Any>) {
+    override fun ser(buf: ByteBuffer, value: VariantSerIntermediate) {
         val (idx, v) = value
         Leb128.writeUnsigned(buf, idx)
 
@@ -455,7 +468,7 @@ class VariantValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<Pair<In
         ser.ser(buf, v)
     }
 
-    override fun deser(buf: ByteBuffer): Pair<Int, Any> {
+    override fun deser(buf: ByteBuffer): VariantSerIntermediate {
         val idx = Leb128.readUnsigned(buf)
         val ser = innerSers[idx]
             ?: throw RuntimeException("Unable to deserialize variant: no serializer for idx \"$idx\"")
@@ -507,7 +520,10 @@ object FuncValueSer : ValueSer<SimpleIDLFunc> {
 
 object ServiceValueSer : ValueSer<SimpleIDLService> {
     override fun calcSizeBytes(value: SimpleIDLService): Int {
-        TODO("Not yet implemented")
+        return if (value.id != null)
+            Byte.SIZE_BYTES + BlobValueSer.calcSizeBytes(value.id)
+        else
+            Byte.SIZE_BYTES
     }
 
     override fun ser(buf: ByteBuffer, value: SimpleIDLService) {

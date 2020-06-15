@@ -3,9 +3,7 @@ package senior.joinu.candid.transpile
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import senior.joinu.candid.*
-import senior.joinu.candid.serialize.IDLDeserializable
-import senior.joinu.candid.serialize.IDLSerializable
-import senior.joinu.leb128.Leb128
+import senior.joinu.candid.serialize.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
@@ -30,58 +28,57 @@ class TranspileContext(val packageName: String, val fileName: String) {
 
 fun transpileRecord(name: ClassName?, type: IDLType.Constructive.Record, context: TranspileContext): ClassName {
     val recordName = name ?: context.nextAnonymousTypeName()
-    val recordBuilder = TypeSpec.classBuilder(recordName).addModifiers(KModifier.OPEN)
 
-    recordBuilder.addSuperinterface(IDLSerializable::class.asClassName())
-    val (serializeFunc, sizeBytesFunc) = createIDLSerializableMethods()
-    var sizeBytesStatement = "return 0"
+    val recordBuilder = TypeSpec.classBuilder(recordName)
+        .addModifiers(KModifier.OPEN)
+        .addSuperinterface(IDLRecord::class)
 
-    val recordCompanionBuilder = TypeSpec.companionObjectBuilder()
-        .addSuperinterface(IDLDeserializable::class.asClassName().parameterizedBy(recordName))
-    val deserializeFunc = createIDLDeserializableMethods(recordName)
-    val deserializeFuncStatements = mutableListOf<CodeBlock>()
+    val fieldsProp = PropertySpec.builder(
+        "fields",
+        RecordSerIntermediate_typeName,
+        KModifier.FINAL, KModifier.OVERRIDE, KModifier.LATEINIT
+    )
+    recordBuilder.addProperty(fieldsProp.build())
 
-    val constructorBuilder = FunSpec.constructorBuilder()
+    val companionProp = PropertySpec
+        .builder("companion", IDLRecordCompanion::class, KModifier.OVERRIDE)
+        .initializer("%T.Companion", recordName)
+    recordBuilder.addProperty(companionProp.build())
+
+    val simpleConstructor = FunSpec.constructorBuilder()
+        .addParameter("fields", RecordSerIntermediate_typeName)
+        .addStatement("this.fields = fields")
+    recordBuilder.addFunction(simpleConstructor.build())
+
+    val actualConstructor = FunSpec.constructorBuilder()
+    val actualConstructorStatements = mutableListOf<String>()
     type.fields.forEach { field ->
         val fieldName = field.name ?: field.idx.toString()
         val fieldTypeClassName = KtTranspiler.transpileType(field.type, context)
 
-        createField(recordBuilder, fieldName, fieldTypeClassName, constructorBuilder)
-        createTypeFieldInCompanion(fieldName, field.type, recordCompanionBuilder)
+        actualConstructor.addParameter(fieldName, fieldTypeClassName)
+        actualConstructorStatements.add("${field.idx} to $fieldName")
 
-        serializeFunc.addStatement(KtSerializer.poetizeSerializeIDLValueInvocation(fieldName))
-        val calcSizeStatement = KtSerializer.poetizeGetSizeBytesOfIDLValueInvocation(fieldName)
-        sizeBytesStatement += " + $calcSizeStatement"
-
-        val fieldTypeName = "${fieldName}Type".escapeIfNecessary()
-        val escapedFieldName = fieldName.escapeIfNecessary()
-        val companion = if (field.type is IDLType.Constructive.Record) {
-            CodeBlock.of("%T.Companion", fieldTypeClassName).toString()
-        } else {
-            "null"
-        }
-        deserializeFuncStatements.add(
-            CodeBlock.of(
-                "$escapedFieldName = ${IDLDeserializer.poetizeDeserializeIDLValueInvocation(
-                    fieldTypeName,
-                    companion
-                )} as %T",
-                fieldTypeClassName
-            )
-        )
+        val fieldProp = PropertySpec
+            .builder(fieldName, fieldTypeClassName)
+            .delegate("lazy { this.fields[${field.idx}] as %T }", fieldTypeClassName)
+        recordBuilder.addProperty(fieldProp.build())
     }
+    val actualConstructorBody = actualConstructorStatements.joinToString(prefix = "this.fields = mapOf(", postfix = ")")
+    actualConstructor.addStatement(actualConstructorBody)
+    recordBuilder.addFunction(actualConstructor.build())
 
-    val deserializeStatement =
-        CodeBlock.of("return %T(${deserializeFuncStatements.joinToString { it.toString() }})", recordName).toString()
-    deserializeFunc.addStatement(deserializeStatement)
-    recordCompanionBuilder.addFunction(deserializeFunc.build())
-    sizeBytesFunc.addStatement(sizeBytesStatement)
+    val recordCompanionBuilder = TypeSpec.companionObjectBuilder()
+        .addSuperinterface(IDLRecordCompanion::class)
 
-    recordBuilder
-        .primaryConstructor(constructorBuilder.build())
-        .addFunction(serializeFunc.build())
-        .addFunction(sizeBytesFunc.build())
-        .addType(recordCompanionBuilder.build())
+    val fromFunc = FunSpec.builder("from")
+        .addModifiers(KModifier.OVERRIDE)
+        .addParameter("fields", RecordSerIntermediate_typeName)
+        .returns(IDLRecord::class)
+        .addStatement("return %T(fields)", recordName)
+
+    recordCompanionBuilder.addFunction(fromFunc.build())
+    recordBuilder.addType(recordCompanionBuilder.build())
 
     context.currentSpec.addType(recordBuilder.build())
 
@@ -89,104 +86,66 @@ fun transpileRecord(name: ClassName?, type: IDLType.Constructive.Record, context
 }
 
 fun transpileVariant(name: ClassName?, type: IDLType.Constructive.Variant, context: TranspileContext): ClassName {
-    val variantName = name ?: context.nextAnonymousTypeName()
-    val variantBuilder = TypeSpec.classBuilder(variantName).addModifiers(KModifier.SEALED)
+    val variantSuperName = name ?: context.nextAnonymousTypeName()
+    val variantSuperBuilder = TypeSpec.classBuilder(variantSuperName).addModifiers(KModifier.SEALED)
 
-    val variantCompanionBuilder = TypeSpec.companionObjectBuilder()
-        .addSuperinterface(IDLDeserializable::class.asClassName().parameterizedBy(variantName))
-
-    val deserializeFunc = createIDLDeserializableMethods(variantName)
-    deserializeFunc
-        .addStatement("val idx = %T.readUnsigned(${TC.bufName}).toInt()", Leb128::class)
-        .addStatement("val companion = idxToCompanion[idx]!!")
-        .addStatement("return companion.deserialize(${TC.bufName}, ${TC.typeTableName})")
-    variantCompanionBuilder.addFunction(deserializeFunc.build())
-
-    val idxToCompanionMappings = mutableListOf<CodeBlock>()
+    val idxToCompanionEntries = mutableListOf<String>()
 
     type.fields.forEach { field ->
-        val fieldName = field.name ?: field.idx.toString()
-        val fieldTypeName = KtTranspiler.transpileType(field.type, context)
-        val fieldNameClassName = ClassName(context.packageName, fieldName)
+        val variantName = field.name ?: field.idx.toString()
+        val variantValueType = KtTranspiler.transpileType(field.type, context)
+        val variantClassName = ClassName(context.packageName, variantName)
 
-        idxToCompanionMappings.add(CodeBlock.of("${field.idx} to %T.Companion", fieldNameClassName))
-
-        val sealedSubclassCompanionBuilder = TypeSpec.companionObjectBuilder()
-            .addSuperinterface(IDLDeserializable::class.asClassName().parameterizedBy(variantName))
-        val deserializeFieldFunc = createIDLDeserializableMethods(fieldNameClassName)
-        val companionName =
-            if ((field.type is IDLType.Constructive.Record) or (field.type is IDLType.Constructive.Variant)) {
-                CodeBlock.of("%T.Companion", fieldNameClassName).toString()
-            } else {
-                "null"
-            }
-        val deserializeStatement = IDLDeserializer.poetizeDeserializeIDLValueInvocation("valueType", companionName)
-        deserializeFieldFunc.addStatement("return %T($deserializeStatement as %T)", fieldNameClassName, fieldTypeName)
+        idxToCompanionEntries.add(CodeBlock.of("${field.idx} to %T.Companion", variantClassName).toString())
 
         val constructor = FunSpec.constructorBuilder()
-        val sealedSubclass = TypeSpec
-            .classBuilder(fieldName)
+        val variantBuilder = TypeSpec.classBuilder(variantName)
             .addModifiers(KModifier.DATA)
-            .superclass(variantName)
+            .superclass(variantSuperName)
+            .addSuperinterface(IDLVariant::class.asClassName().parameterizedBy(variantValueType))
 
-        createField(sealedSubclass, "value", fieldTypeName, constructor)
-        createTypeFieldInCompanion("value", field.type, sealedSubclassCompanionBuilder)
+        val variantValueProp = PropertySpec.builder("value", variantValueType, KModifier.OVERRIDE)
+            .initializer("value")
 
-        sealedSubclass
-            .primaryConstructor(constructor.build())
-            .addSuperinterface(IDLSerializable::class.asClassName())
-        val (serializeFunc, sizeBytesFunc) = createIDLSerializableMethods()
+        constructor.addParameter("value", variantValueType)
+        variantBuilder.addProperty(variantValueProp.build())
+        variantBuilder.primaryConstructor(constructor.build())
 
-        // serialize body
-        serializeFunc
-            .addStatement("%T.writeUnsigned(${TC.bufName}, ${field.idx}.toUInt())", Leb128::class)
-            .addStatement(KtSerializer.poetizeSerializeIDLValueInvocation("value"))
-        // sizeBytes body
-        sizeBytesFunc.addStatement(
-            "return %T.sizeUnsigned(${field.idx}) + ${KtSerializer.poetizeGetSizeBytesOfIDLValueInvocation("value")}",
-            Leb128::class
-        )
+        val idxProp = PropertySpec.builder("idx", Int::class, KModifier.OVERRIDE)
+            .initializer("${field.idx}")
+        variantBuilder.addProperty(idxProp.build())
 
-        sealedSubclassCompanionBuilder.addFunction(deserializeFieldFunc.build())
-        sealedSubclass
-            .addFunction(serializeFunc.build())
-            .addFunction(sizeBytesFunc.build())
-            .addType(sealedSubclassCompanionBuilder.build())
+        val variantCompanionBuilder = TypeSpec.companionObjectBuilder()
+            .addSuperinterface(
+                IDLVariantCompanion::class.asClassName().parameterizedBy(variantValueType, variantClassName)
+            )
 
-        variantBuilder.addType(sealedSubclass.build())
+        val fromFunc = FunSpec.builder("from")
+            .addModifiers(KModifier.OVERRIDE)
+            .addParameter("value", variantValueType)
+            .returns(variantClassName)
+            .addStatement("return %T(value)", variantClassName)
+        variantCompanionBuilder.addFunction(fromFunc.build())
+        variantBuilder.addType(variantCompanionBuilder.build())
     }
 
-    val idxToCompanionField = PropertySpec.builder(
-        "idxToCompanion",
-        Map::class.asClassName().parameterizedBy(
-            Int::class.asClassName(),
-            IDLDeserializable::class.asClassName().parameterizedBy(variantName)
+    val variantsInitializer = idxToCompanionEntries.joinToString(prefix = "mapOf(", postfix = ")")
+    val variantsProp = PropertySpec
+        .builder(
+            "variants",
+            Map::class.asClassName().parameterizedBy(Int::class.asClassName(), IDLVariantCompanionType_typeName),
+            KModifier.OVERRIDE
         )
-    ).initializer("mapOf(${idxToCompanionMappings.joinToString { it.toString() }})")
-    variantCompanionBuilder.addProperty(idxToCompanionField.build())
+        .initializer(variantsInitializer)
+    val variantSuperCompanionBuilder = TypeSpec.companionObjectBuilder()
+        .addSuperinterface(IDLVariantSuperCompanion::class)
+        .addProperty(variantsProp.build())
 
-    variantBuilder.addType(variantCompanionBuilder.build())
-    variantBuilder.addSuperinterface(IDLSerializable::class.asClassName())
-    val (serializeFunc, sizeBytesFunc) = createIDLSerializableMethods()
+    variantSuperBuilder.addType(variantSuperCompanionBuilder.build())
 
-    // serialize body
-    serializeFunc.addStatement(
-        "throw %T(\"Unable·to·serialize·sealed·superclass·$variantName\")",
-        RuntimeException::class
-    )
-    // sizeBytes body
-    sizeBytesFunc.addStatement(
-        "throw %T(\"Unable·to·get·byte·size·of·sealed·superclass·$variantName\")",
-        RuntimeException::class
-    )
+    context.currentSpec.addType(variantSuperBuilder.build())
 
-    variantBuilder.addFunction(serializeFunc.build())
-    variantBuilder.addFunction(sizeBytesFunc.build())
-
-    val variant = variantBuilder.build()
-    context.currentSpec.addType(variant)
-
-    return variantName
+    return variantSuperName
 }
 
 fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: TranspileContext): ClassName {
@@ -361,13 +320,15 @@ object TC {
     val typeTableName = "typeTable"
     val bufSizeName = "bufSize"
     val staticPayloadName = "staticPayload"
+    val valueSerName = "valueSer"
+    val typeSerName = "typeSer"
 }
 
-fun createIDLSerializableMethods(): Pair<FunSpec.Builder, FunSpec.Builder> {
+fun createIDLSerializableMethods(valueSerParameter: TypeName): Pair<FunSpec.Builder, FunSpec.Builder> {
     val serialize = FunSpec
         .builder(TC.serializeName)
         .addParameter(TC.bufName, ByteBuffer::class.asTypeName())
-        .addParameter(TC.typeTableName, TypeTable::class.asTypeName())
+        .addParameter(TC.valueSerName, valueSerParameter)
         .returns(Unit::class)
         .addModifiers(KModifier.OVERRIDE)
 
