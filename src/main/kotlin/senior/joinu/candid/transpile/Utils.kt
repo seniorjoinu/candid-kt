@@ -87,7 +87,13 @@ fun transpileRecord(name: ClassName?, type: IDLType.Constructive.Record, context
 
 fun transpileVariant(name: ClassName?, type: IDLType.Constructive.Variant, context: TranspileContext): ClassName {
     val variantSuperName = name ?: context.nextAnonymousTypeName()
+
     val variantSuperBuilder = TypeSpec.classBuilder(variantSuperName).addModifiers(KModifier.SEALED)
+
+    val superCompanionProp = PropertySpec
+        .builder("superCompanion", IDLVariantSuperCompanion::class, KModifier.OVERRIDE)
+        .initializer("%T.Companion", variantSuperName)
+    variantSuperBuilder.addProperty(superCompanionProp.build())
 
     val idxToCompanionEntries = mutableListOf<String>()
 
@@ -114,6 +120,16 @@ fun transpileVariant(name: ClassName?, type: IDLType.Constructive.Variant, conte
         val idxProp = PropertySpec.builder("idx", Int::class, KModifier.OVERRIDE)
             .initializer("${field.idx}")
         variantBuilder.addProperty(idxProp.build())
+
+        val companionProp = PropertySpec.builder(
+            "companion",
+            IDLVariantCompanion::class.asTypeName().parameterizedBy(
+                variantValueType,
+                WildcardTypeName.producerOf(IDLVariant::class.asTypeName().parameterizedBy(variantValueType))
+            ),
+            KModifier.OVERRIDE
+        ).initializer("%T.Companion", variantClassName)
+        variantBuilder.addProperty(companionProp.build())
 
         val variantCompanionBuilder = TypeSpec.companionObjectBuilder()
             .addSuperinterface(

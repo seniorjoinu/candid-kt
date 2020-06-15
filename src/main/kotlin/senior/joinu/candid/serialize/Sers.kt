@@ -35,6 +35,10 @@ val IDLVariantCompanionType_typeName = IDLVariantCompanion::class.asTypeName().p
     WildcardTypeName.producerOf(IDLVariant::class.asTypeName().parameterizedBy(WildcardTypeName.producerOf(Any::class)))
 )
 
+interface IDLVariantSuper {
+    val superCompanion: IDLVariantSuperCompanion
+}
+
 interface IDLVariantSuperCompanion {
     val variants: Map<Int, IDLVariantCompanionType>
 }
@@ -42,6 +46,7 @@ interface IDLVariantSuperCompanion {
 interface IDLVariant<T> {
     val idx: Int
     val value: T
+    val companion: IDLVariantCompanion<T, out IDLVariant<T>>
 }
 
 interface IDLVariantCompanion<T, V : IDLVariant<T>> {

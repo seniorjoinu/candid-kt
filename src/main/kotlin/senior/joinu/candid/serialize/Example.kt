@@ -23,9 +23,11 @@ open class Record : IDLRecord {
     }
 }
 
-sealed class VariantSuper {
+
+sealed class VariantSuper : IDLVariantSuper {
     class VariantA(override val value: Int) : VariantSuper(), IDLVariant<Int> {
         override val idx = 0
+        override val companion = Companion
 
         companion object : IDLVariantCompanion<Int, VariantA> {
             override fun from(value: Int): VariantA {
@@ -36,6 +38,7 @@ sealed class VariantSuper {
 
     class VariantB(override val value: Record) : VariantSuper(), IDLVariant<Record> {
         override val idx = 1
+        override val companion = Companion
 
         companion object : IDLVariantCompanion<Record, VariantB> {
             override fun from(value: Record): VariantB {
@@ -43,6 +46,8 @@ sealed class VariantSuper {
             }
         }
     }
+
+    override val superCompanion: IDLVariantSuperCompanion = Companion
 
     companion object : IDLVariantSuperCompanion {
         override val variants = mapOf(0 to VariantA.Companion, 1 to VariantB.Companion)
