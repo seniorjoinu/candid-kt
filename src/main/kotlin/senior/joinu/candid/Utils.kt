@@ -1,8 +1,6 @@
 package senior.joinu.candid
 
-import senior.joinu.leb128.Leb128
 import java.math.BigInteger
-import java.nio.ByteBuffer
 import java.util.*
 
 
@@ -14,20 +12,6 @@ fun idlHash(id: String): Int {
     }
 
     return result.mod(twoPowThirtyTwo).intValueExact()
-}
-
-/*
-    ByteBuffer should be set to little endian
-    buf.order(ByteOrder.LITTLE_ENDIAN)
- */
-object IDLSerialize {
-    fun magicToken(buf: ByteBuffer) {
-        buf
-            .putChar('D')
-            .putChar('I')
-            .putChar('D')
-            .putChar('L')
-    }
 }
 
 
@@ -62,23 +46,8 @@ fun BigInteger.toUBytes(): ByteArray {
     return extractedBytes
 }
 
-fun List<IDLType>.sizeBytes(typeTable: TypeTable): Int {
-    return Leb128.sizeUnsigned(this.size) + this
-        .map { type ->
-            type.getTOpcodeList(typeTable).map { opcode -> opcode.sizeBytes() }
-        }
-        .flatten()
-        .sum()
-}
 
-fun List<IDLType>.serialize(buf: ByteBuffer, typeTable: TypeTable) {
-    Leb128.writeUnsigned(buf, this.size.toUInt())
-    this.forEach { type ->
-        type.getTOpcodeList(typeTable).forEach { opcode -> opcode.serialize(buf) }
-    }
-}
-
-fun ByteArray.poetize() = Base64.getEncoder().encodeToString(this)
+fun ByteArray.poetize(): String = Base64.getEncoder().encodeToString(this)
 
 // [senior.joinu] - Everything below is from https://github.com/square/kotlinpoet/blob/master/kotlinpoet/src/main/java/com/squareup/kotlinpoet/Util.kt
 // for some reason these functions are internal there :c

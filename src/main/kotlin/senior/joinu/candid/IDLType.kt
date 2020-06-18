@@ -2,6 +2,7 @@ package senior.joinu.candid
 
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
+import senior.joinu.candid.serialize.getTypeSerForType
 import java.nio.ByteBuffer
 
 class TypeTable(
@@ -11,11 +12,19 @@ class TypeTable(
     val labels: MutableMap<IDLType.Id, Int> = mutableMapOf()
 ) {
     fun serialize(buf: ByteBuffer) {
-        registry.serialize(buf, this)
+        registry.forEach { type ->
+            val typeSer = getTypeSerForType(type, this)
+            typeSer.serType(buf)
+        }
     }
 
     fun sizeBytes(): Int {
-        return registry.sizeBytes(this)
+        return registry
+            .map { type ->
+                val typeSer = getTypeSerForType(type, this)
+                typeSer.calcTypeSizeBytes()
+            }
+            .sum()
     }
 
     fun poetize(): String {

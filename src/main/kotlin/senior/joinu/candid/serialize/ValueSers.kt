@@ -1,9 +1,6 @@
 package senior.joinu.candid.serialize
 
 import com.squareup.kotlinpoet.CodeBlock
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.asClassName
-import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.*
 import senior.joinu.leb128.Leb128
 import senior.joinu.leb128.Leb128BI
@@ -337,7 +334,7 @@ object EmptyValueSer : ValueSer<Empty> {
     }
 }
 
-class OptValueSer<T>(val innerSer: ValueSer<T>) : ValueSer<T?> {
+class OptValueSer<T : Any>(val innerSer: ValueSer<T>) : ValueSer<T?> {
     override fun calcSizeBytes(value: T?): Int {
         return Byte.SIZE_BYTES + if (value != null) innerSer.calcSizeBytes(value) else 0
     }
@@ -410,75 +407,7 @@ object BlobValueSer : ValueSer<ByteArray> {
     }
 }
 
-typealias RecordSerIntermediate = Map<Int, Any>
-
-val RecordSerIntermediate_typeName =
-    Map::class.asClassName().parameterizedBy(Int::class.asTypeName(), Any::class.asTypeName())
-
-class RecordValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<RecordSerIntermediate> {
-    override fun calcSizeBytes(value: RecordSerIntermediate): Int {
-        return innerSers.entries
-            .map { (idx, ser) -> ser.calcSizeBytes(value[idx]!!) }
-            .sum()
-    }
-
-    override fun ser(buf: ByteBuffer, value: RecordSerIntermediate) {
-        innerSers.entries.forEach { (idx, ser) ->
-            ser.ser(buf, value[idx]!!)
-        }
-    }
-
-    override fun deser(buf: ByteBuffer): RecordSerIntermediate {
-        return innerSers.entries.associate { (idx, ser) ->
-            idx to ser.deser(buf)
-        }
-    }
-
-    override fun poetize(): String {
-        val poetizedInnerSers = innerSers.entries.joinToString(prefix = "mapOf(", postfix = ")") { (key, ser) ->
-            "$key to ${ser.poetize()}"
-        }
-        return CodeBlock.of("%T(${poetizedInnerSers})", RecordValueSer::class).toString()
-    }
-}
-
-typealias VariantSerIntermediate = Pair<Int, Any>
-
-val VariantSerIntermediate_typeName =
-    Pair::class.asTypeName().parameterizedBy(Int::class.asTypeName(), Any::class.asTypeName())
-
-class VariantValueSer(val innerSers: Map<Int, ValueSer<Any>>) : ValueSer<VariantSerIntermediate> {
-    override fun calcSizeBytes(value: VariantSerIntermediate): Int {
-        val (idx, v) = value
-
-        return Leb128.sizeUnsigned(idx) + innerSers[idx]!!.calcSizeBytes(v)
-    }
-
-    override fun ser(buf: ByteBuffer, value: VariantSerIntermediate) {
-        val (idx, v) = value
-        Leb128.writeUnsigned(buf, idx)
-
-        val ser = innerSers[idx]
-            ?: throw RuntimeException("Unable to serialize variant: no serializer for idx \"$idx\"")
-        ser.ser(buf, v)
-    }
-
-    override fun deser(buf: ByteBuffer): VariantSerIntermediate {
-        val idx = Leb128.readUnsigned(buf)
-        val ser = innerSers[idx]
-            ?: throw RuntimeException("Unable to deserialize variant: no serializer for idx \"$idx\"")
-
-        return idx to ser.deser(buf)
-    }
-
-    override fun poetize(): String {
-        val poetizedInnerSers = innerSers.entries.joinToString(prefix = "mapOf(", postfix = ")") { (idx, ser) ->
-            "$idx to ${ser.poetize()}"
-        }
-
-        return CodeBlock.of("%T(${poetizedInnerSers})", VariantValueSer::class).toString()
-    }
-}
+typealias RecordSerIntermediate = Map<Int, Any?>
 
 object FuncValueSer : ValueSer<SimpleIDLFunc> {
     override fun calcSizeBytes(value: SimpleIDLFunc): Int {
@@ -535,7 +464,7 @@ object ServiceValueSer : ValueSer<SimpleIDLService> {
             else -> throw RuntimeException("Invalid notOpaque flag met during service deserialization")
         }
 
-        return SimpleIDLService(id)
+        return SimpleIDLService(null, id)
     }
 
     override fun poetize(): String {
@@ -571,59 +500,5 @@ object PrincipalValueSer : ValueSer<SimpleIDLPrincipal> {
 
     override fun poetize(): String {
         return CodeBlock.of("%T", PrincipalValueSer::class).toString()
-    }
-}
-
-fun getValueSerForType(type: IDLType, typeTable: TypeTable): ValueSer<Any> {
-    return when (type) {
-        is IDLType.Id -> {
-            val labeledType = typeTable.getTypeByLabel(type)
-            getValueSerForType(labeledType, typeTable)
-        }
-
-        is IDLType.Primitive.Natural -> NatValueSer as ValueSer<Any>
-        is IDLType.Primitive.Nat8 -> Nat8ValueSer as ValueSer<Any>
-        is IDLType.Primitive.Nat16 -> Nat16ValueSer as ValueSer<Any>
-        is IDLType.Primitive.Nat32 -> Nat32ValueSer as ValueSer<Any>
-        is IDLType.Primitive.Nat64 -> Nat64ValueSer as ValueSer<Any>
-
-        is IDLType.Primitive.Integer -> IntValueSer as ValueSer<Any>
-        is IDLType.Primitive.Int8 -> Int8ValueSer as ValueSer<Any>
-        is IDLType.Primitive.Int16 -> Int16ValueSer as ValueSer<Any>
-        is IDLType.Primitive.Int32 -> Int32ValueSer as ValueSer<Any>
-        is IDLType.Primitive.Int64 -> Int64ValueSer as ValueSer<Any>
-
-        is IDLType.Primitive.Float32 -> Float32ValueSer as ValueSer<Any>
-        is IDLType.Primitive.Float64 -> Float64ValueSer as ValueSer<Any>
-
-        is IDLType.Primitive.Bool -> BoolValueSer as ValueSer<Any>
-        is IDLType.Primitive.Text -> TextValueSer as ValueSer<Any>
-        is IDLType.Primitive.Null -> NullValueSer as ValueSer<Any>
-        is IDLType.Primitive.Reserved -> ReservedValueSer as ValueSer<Any>
-        is IDLType.Primitive.Empty -> EmptyValueSer as ValueSer<Any>
-
-        is IDLType.Constructive.Opt -> {
-            val innerSer = getValueSerForType(type.type, typeTable)
-            OptValueSer(innerSer) as ValueSer<Any>
-        }
-        is IDLType.Constructive.Vec -> {
-            val innerSer = getValueSerForType(type.type, typeTable)
-            VecValueSer(innerSer) as ValueSer<Any>
-        }
-        is IDLType.Constructive.Blob -> BlobValueSer as ValueSer<Any>
-        is IDLType.Constructive.Record -> {
-            val innerSers = type.fields.associate { it.idx to getValueSerForType(it.type, typeTable) }
-            RecordValueSer(innerSers) as ValueSer<Any>
-        }
-        is IDLType.Constructive.Variant -> {
-            val innerSers = type.fields.associate { it.idx to getValueSerForType(it.type, typeTable) }
-            VariantValueSer(innerSers) as ValueSer<Any>
-        }
-
-        is IDLType.Reference.Func -> FuncValueSer as ValueSer<Any>
-        is IDLType.Reference.Service -> ServiceValueSer as ValueSer<Any>
-        is IDLType.Reference.Principal -> PrincipalValueSer as ValueSer<Any>
-
-        else -> throw java.lang.RuntimeException("Unable to get serializer for type $type")
     }
 }

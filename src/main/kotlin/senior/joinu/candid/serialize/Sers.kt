@@ -1,8 +1,5 @@
 package senior.joinu.candid.serialize
 
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.WildcardTypeName
-import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.TypeTable
 import java.nio.ByteBuffer
 
@@ -26,29 +23,20 @@ interface IDLRecord {
 
 interface IDLRecordCompanion {
     fun from(fields: RecordSerIntermediate): IDLRecord
+    fun poetize(): String
 }
 
-typealias IDLVariantCompanionType = IDLVariantCompanion<out Any, out IDLVariant<out Any>>
-
-val IDLVariantCompanionType_typeName = IDLVariantCompanion::class.asTypeName().parameterizedBy(
-    WildcardTypeName.producerOf(Any::class),
-    WildcardTypeName.producerOf(IDLVariant::class.asTypeName().parameterizedBy(WildcardTypeName.producerOf(Any::class)))
-)
-
-interface IDLVariantSuper {
+interface IDLVariant {
     val superCompanion: IDLVariantSuperCompanion
+    val idx: Int?
+    val value: Any?
 }
 
 interface IDLVariantSuperCompanion {
-    val variants: Map<Int, IDLVariantCompanionType>
+    val variants: Map<Int, IDLVariantCompanion>
+    fun poetize(): String
 }
 
-interface IDLVariant<T> {
-    val idx: Int
-    val value: T
-    val companion: IDLVariantCompanion<T, out IDLVariant<T>>
-}
-
-interface IDLVariantCompanion<T, V : IDLVariant<T>> {
-    fun from(value: T): V
+interface IDLVariantCompanion {
+    fun from(value: Any?): IDLVariant
 }

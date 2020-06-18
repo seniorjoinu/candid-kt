@@ -1,6 +1,8 @@
 package senior.joinu.candid
 
+
 open class SimpleIDLService(
+    var host: String?,
     val id: ByteArray?
 )
 
