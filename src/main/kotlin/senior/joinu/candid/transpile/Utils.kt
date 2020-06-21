@@ -39,8 +39,11 @@ fun transpileRecord(
     context: TranspileContext
 ): Pair<TypeName, CodeBlock> {
     val recordName = name ?: context.nextAnonymousTypeName()
+    val hasFields = type.fields.isNotEmpty()
+
     val recordBuilder = TypeSpec.classBuilder(recordName)
-        .addModifiers(KModifier.DATA)
+    if (hasFields) recordBuilder.addModifiers(KModifier.DATA)
+
     val primaryConstructor = FunSpec.constructorBuilder()
 
     val serName = context.createValueSerTypeName(recordName.simpleName)
@@ -80,13 +83,15 @@ fun transpileRecord(
         ).initializer(fieldSer)
         serBuilder.addProperty(fieldValueSerProp.build())
 
-        calcSizeBytesFuncStatements.add("${fieldValueSerPropName}.calcSizeBytes(value.$fieldName)")
+        calcSizeBytesFuncStatements.add("this.${fieldValueSerPropName.escapeIfNecessary()}.calcSizeBytes(value.${fieldName.escapeIfNecessary()})")
 
-        serFunc.addStatement("${fieldValueSerPropName}.ser(buf, value.$fieldName)")
+        serFunc.addStatement("this.${fieldValueSerPropName.escapeIfNecessary()}.ser(buf, value.${fieldName.escapeIfNecessary()})")
 
-        deserFuncStatements.add("${fieldValueSerPropName}.deser(buf)")
+        deserFuncStatements.add("this.${fieldValueSerPropName.escapeIfNecessary()}.deser(buf)")
     }
-    recordBuilder.addFunction(primaryConstructor.build())
+    recordBuilder.primaryConstructor(primaryConstructor.build())
+
+    if (!hasFields) calcSizeBytesFuncStatements.add("0")
 
     val calcSizeBytesFuncBody = calcSizeBytesFuncStatements.joinToString(" + ", "return ")
     calcSizeBytesFunc.addStatement(calcSizeBytesFuncBody)
@@ -101,7 +106,7 @@ fun transpileRecord(
     val poetizeFunc = FunSpec.builder("poetize")
         .addModifiers(KModifier.OVERRIDE)
         .returns(String::class)
-        .addStatement("return %S", "CodeBlock.of(\"%T\", ${serName.simpleName}::class).toString()")
+        .addStatement("return %T.of(%S, ${serName.simpleName}::class).toString()", CodeBlock::class, "%T")
     serBuilder.addFunction(poetizeFunc.build())
 
     context.currentSpec.addType(recordBuilder.build())
@@ -151,64 +156,66 @@ fun transpileVariant(
             .addModifiers(KModifier.DATA)
             .superclass(variantSuperName)
 
-        val variantValueProp = PropertySpec.builder("value", variantValueType, KModifier.OVERRIDE)
+        val variantValueProp = PropertySpec.builder("value", variantValueType)
             .initializer("value")
 
         constructor.addParameter("value", variantValueType)
         variantBuilder.addProperty(variantValueProp.build())
         variantBuilder.primaryConstructor(constructor.build())
 
+        variantSuperBuilder.addType(variantBuilder.build())
+
         calcSizeBytesFuncStatements.add(
             CodeBlock.of(
-                "is %T -> %T.sizeUnsigned(${field.idx}) + ${variantValueSer}.calcSizeBytes(value.value)",
-                variantClassName, Leb128::class
+                "is %T.%T -> %T.sizeUnsigned(${field.idx}) + ${variantValueSer}.calcSizeBytes(value.value)",
+                variantSuperName, variantClassName, Leb128::class
             ).toString()
         )
 
         serFuncStatements.add(
             CodeBlock.of(
                 """
-                    is %T -> {
+                    is %T.%T -> {
                         %T.writeUnsigned(buf, ${field.idx})
                         ${variantValueSer}.ser(buf, value.value)
                     }
                 """.trimIndent(),
-                variantClassName, Leb128::class
+                variantSuperName, variantClassName, Leb128::class
             ).toString()
         )
 
         deserFuncStatements.add(
             CodeBlock.of(
                 """
-                    ${field.idx} -> %T(${variantValueSer}.deser(buf))
+                    ${field.idx} -> %T.%T(${variantValueSer}.deser(buf))
                 """.trimIndent(),
-                variantClassName
+                variantSuperName, variantClassName
             ).toString()
         )
     }
 
-    val calcSizeBytesFuncBody = calcSizeBytesFuncStatements.joinToString("\n", "return when (value) {", "}")
+    val calcSizeBytesFuncBody = calcSizeBytesFuncStatements.joinToString("\n", "return when (value) {\n", "\n}")
     calcSizeBytesFunc.addStatement(calcSizeBytesFuncBody)
     variantSuperValueSerBuilder.addFunction(calcSizeBytesFunc.build())
 
-    val serFuncBody = serFuncStatements.joinToString("\n", "when (value) {", "}")
+    val serFuncBody = serFuncStatements.joinToString("\n", "when (value) {\n", "\n}")
     serFunc.addStatement(serFuncBody)
     variantSuperValueSerBuilder.addFunction(serFunc.build())
 
     deserFuncStatements.add(
         CodeBlock.of(
-            "else -> throw %T(\"Unknown idx met during VariantSuper deserialization %P\")",
-            RuntimeException::class, "$" + "idx"
+            "else -> throw %T(\"Unknown·idx·met·during·variant·deserialization\")",
+            RuntimeException::class
         ).toString()
     )
-    val deserFuncBody = deserFuncStatements.joinToString("\n", "return when (idx) {", "}")
+    val deserFuncBody = deserFuncStatements.joinToString("\n", "return when (idx) {\n", "\n}")
     deserFunc.addStatement(deserFuncBody)
     variantSuperValueSerBuilder.addFunction(deserFunc.build())
 
     val poetizeFunc = FunSpec.builder("poetize")
         .addModifiers(KModifier.OVERRIDE)
         .returns(String::class)
-        .addStatement("return %S", "CodeBlock.of(\"%T\", ${variantSuperValueSerName}::class).toString()")
+        .addStatement("return %T.of(%S, ${variantSuperValueSerName}::class).toString()", CodeBlock::class, "%T")
     variantSuperValueSerBuilder.addFunction(poetizeFunc.build())
 
     context.currentSpec.addType(variantSuperBuilder.build())
@@ -249,14 +256,16 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
         context.typeTable.copyLabelsForType(arg.type, requestTypeTable)
         getTypeSerForType(arg.type, requestTypeTable)
     }
-    val typesSizeBytes = argTypeSers.map { it.calcTypeSizeBytes() }.sum()
+    val typesSizeBytes = Leb128.sizeUnsigned(argTypeSers.size) + argTypeSers.map { it.calcTypeSizeBytes() }.sum()
     val staticPayloadSize = MAGIC_PREFIX.size + requestTypeTable.sizeBytes() + typesSizeBytes
     val staticPayloadBuf = ByteBuffer.allocate(staticPayloadSize)
     staticPayloadBuf.order(ByteOrder.LITTLE_ENDIAN)
     staticPayloadBuf.put(MAGIC_PREFIX)
     requestTypeTable.serialize(staticPayloadBuf)
+
     Leb128.writeUnsigned(staticPayloadBuf, argTypeSers.size)
     argTypeSers.forEach { it.serType(staticPayloadBuf) }
+
     staticPayloadBuf.rewind()
     val staticPayload = ByteArray(staticPayloadSize)
     staticPayloadBuf.get(staticPayload)
@@ -269,7 +278,11 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
 
     // transpilling function return value
     val returnValueTypeName = context.createResultValueTypeName(funcTypeName.simpleName)
-    val returnValueBuilder = TypeSpec.classBuilder(returnValueTypeName.simpleName).addModifiers(KModifier.DATA)
+    val hasResults = type.results.isNotEmpty()
+
+    val returnValueBuilder = TypeSpec.classBuilder(returnValueTypeName.simpleName)
+    if (hasResults) returnValueBuilder.addModifiers(KModifier.DATA)
+
     val returnValueConstructor = FunSpec.constructorBuilder()
     val deserStatements = mutableListOf<String>()
     val returnValuesValueSers = type.results.mapIndexed { idx, res ->
@@ -279,7 +292,7 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
         returnValueBuilder.addProperty(resProp.build())
         returnValueConstructor.addParameter(idx.toString(), resClassName)
 
-        deserStatements.add("${resSer}.deser(receiveBuf)")
+        deserStatements.add(CodeBlock.of("${resSer}.deser(receiveBuf) as %T", resClassName).toString())
 
         resSer
     }
@@ -290,7 +303,7 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     val invoke = FunSpec.builder("invoke").addModifiers(KModifier.SUSPEND, KModifier.OPERATOR)
         .returns(returnValueTypeName)
 
-    val valueSizeBytesStatements = mutableListOf<String>()
+    val valueSizeBytesStatements = mutableListOf("0")
     val serStatements = mutableListOf<String>()
     type.arguments.forEachIndexed { idx, arg ->
         val argName = "arg$idx"
@@ -362,70 +375,4 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     context.currentSpec.addType(actorClassBuilder.build())
 
     return actorClassName
-}
-
-object TC {
-    val serializeName = "serialize"
-    val sizeBytesName = "sizeBytes"
-    val bufName = "buf"
-    val typeTableName = "typeTable"
-    val bufSizeName = "bufSize"
-    val staticPayloadName = "staticPayload"
-    val valueSerName = "valueSer"
-    val typeSerName = "typeSer"
-}
-
-fun createIDLSerializableMethods(valueSerParameter: TypeName): Pair<FunSpec.Builder, FunSpec.Builder> {
-    val serialize = FunSpec
-        .builder(TC.serializeName)
-        .addParameter(TC.bufName, ByteBuffer::class.asTypeName())
-        .addParameter(TC.valueSerName, valueSerParameter)
-        .returns(Unit::class)
-        .addModifiers(KModifier.OVERRIDE)
-
-    val sizeBytes = FunSpec
-        .builder(TC.sizeBytesName)
-        .addParameter(TC.typeTableName, TypeTable::class.asTypeName())
-        .returns(Int::class)
-        .addModifiers(KModifier.OVERRIDE)
-
-    return serialize to sizeBytes
-}
-
-fun createIDLDeserializableMethods(forName: ClassName): FunSpec.Builder {
-    return FunSpec.builder("deserialize")
-        .addModifiers(KModifier.OVERRIDE)
-        .addParameter(TC.bufName, ByteBuffer::class)
-        .addParameter(TC.typeTableName, TypeTable::class)
-        .returns(forName)
-}
-
-fun createTypeFieldInCompanion(name: String, type: IDLType, companion: TypeSpec.Builder) {
-    val fieldType = PropertySpec
-        .builder("${name}Type", IDLType::class.asTypeName())
-        .initializer(type.poetize())
-
-    companion.addProperty(fieldType.build())
-}
-
-fun createField(
-    record: TypeSpec.Builder,
-    name: String,
-    typeName: TypeName,
-    constructor: FunSpec.Builder?,
-    override: Boolean = false
-) {
-    val field = PropertySpec
-        .builder(name, typeName)
-
-    if (override) {
-        field.addModifiers(KModifier.OVERRIDE)
-    }
-
-    if (constructor != null) {
-        field.initializer(name)
-        constructor.addParameter(name, typeName)
-    }
-
-    record.addProperty(field.build())
 }

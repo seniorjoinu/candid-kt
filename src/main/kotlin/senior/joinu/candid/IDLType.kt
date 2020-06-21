@@ -3,6 +3,7 @@ package senior.joinu.candid
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.serialize.getTypeSerForType
+import senior.joinu.leb128.Leb128
 import java.nio.ByteBuffer
 
 class TypeTable(
@@ -12,6 +13,7 @@ class TypeTable(
     val labels: MutableMap<IDLType.Id, Int> = mutableMapOf()
 ) {
     fun serialize(buf: ByteBuffer) {
+        Leb128.writeUnsigned(buf, registry.size)
         registry.forEach { type ->
             val typeSer = getTypeSerForType(type, this)
             typeSer.serType(buf)
@@ -19,7 +21,7 @@ class TypeTable(
     }
 
     fun sizeBytes(): Int {
-        return registry
+        return Leb128.sizeUnsigned(registry.size) + registry
             .map { type ->
                 val typeSer = getTypeSerForType(type, this)
                 typeSer.calcTypeSizeBytes()
@@ -86,6 +88,30 @@ class TypeTable(
         }
     }
 
+    fun registerIfNotPrimitiveOrId(type: IDLType) {
+        when (type) {
+            is IDLType.Id, is IDLType.Primitive -> {
+            }
+            else -> registerType(type)
+        }
+    }
+
+    fun registerInnerType(type: IDLType) {
+        when (type) {
+            is IDLType.Constructive.Opt -> registerIfNotPrimitiveOrId(type.type)
+            is IDLType.Constructive.Vec -> registerIfNotPrimitiveOrId(type.type)
+            is IDLType.Constructive.Record -> type.fields.forEach { registerIfNotPrimitiveOrId(it.type) }
+            is IDLType.Constructive.Variant -> type.fields.forEach { registerIfNotPrimitiveOrId(it.type) }
+            is IDLType.Reference.Func -> {
+                type.arguments.forEach { registerIfNotPrimitiveOrId(it.type) }
+                type.results.forEach { registerIfNotPrimitiveOrId(it.type) }
+            }
+            is IDLType.Reference.Service -> type.methods.forEach { registerIfNotPrimitiveOrId(it.type as IDLType) }
+            else -> {
+            }
+        }
+    }
+
     // registers type in TT if it wasn't registered before
     // returns registry index
     fun registerType(type: IDLType): Int {
@@ -93,6 +119,7 @@ class TypeTable(
 
         return if (idx == -1) {
             registry.add(type)
+            registerInnerType(type)
             registry.lastIndex
         } else {
             idx
@@ -101,6 +128,7 @@ class TypeTable(
 
     // registers type and puts label on it
     // returns registry index
+    // ! thread unsafe !
     fun registerTypeWithLabel(label: IDLType.Id, type: IDLType): Int {
         if (labels.containsKey(label)) {
             return labels[label]!!
@@ -116,6 +144,7 @@ class TypeTable(
         val idx = registry.lastIndex + 1
         labels[label] = idx
         registry.add(type)
+        registerInnerType(type)
 
         return idx
     }
@@ -124,6 +153,10 @@ class TypeTable(
     fun getTypeByLabel(label: IDLType.Id): IDLType {
         val id = labels[label]!!
         return registry[id]
+    }
+
+    fun getIdxByLabel(label: IDLType.Id): Int {
+        return labels[label]!!
     }
 }
 
@@ -302,7 +335,7 @@ sealed class IDLType {
         }
     }
 
-    sealed class Other : IDLType() {
+    /*sealed class Other : IDLType() {
         data class Custom(val opcode: Int) : Other() {
             override fun poetize() = CodeBlock.of("%T($opcode)", Custom::class).toString()
         }
@@ -310,7 +343,7 @@ sealed class IDLType {
         data class Future(val opcode: Int) : Other() {
             override fun poetize() = CodeBlock.of("%T($opcode)", Future::class).toString()
         }
-    }
+    }*/
 }
 
 data class IDLFieldType(val name: String?, val type: IDLType, var idx: Int) {
@@ -327,10 +360,6 @@ enum class IDLFuncAnn {
     },
     Query {
         override fun poetize() = CodeBlock.of("%T", Query::class.asTypeName()).toString()
-    },
-
-    Unknown {
-        override fun poetize() = throw RuntimeException("Unable to poetize unknown function annotation")
     };
 
     abstract fun poetize(): String

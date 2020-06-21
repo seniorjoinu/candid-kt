@@ -314,6 +314,7 @@ object BlobTypeSer : TypeSer {
 class RecordTypeSer(val innerSers: Map<Int, TypeSer>) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.RECORD.value)
+        Leb128.writeUnsigned(buf, innerSers.size)
         innerSers.entries.forEach { (idx, ser) ->
             Leb128.writeUnsigned(buf, idx)
             ser.serType(buf)
@@ -321,7 +322,7 @@ class RecordTypeSer(val innerSers: Map<Int, TypeSer>) : TypeSer {
     }
 
     override fun calcTypeSizeBytes(): Int {
-        return Leb128.sizeSigned(IDLOpcode.RECORD.value) +
+        return Leb128.sizeSigned(IDLOpcode.RECORD.value) + Leb128.sizeUnsigned(innerSers.size) +
                 innerSers.entries
                     .map { (idx, ser) -> Leb128.sizeUnsigned(idx) + ser.calcTypeSizeBytes() }
                     .sum()
@@ -338,6 +339,7 @@ class RecordTypeSer(val innerSers: Map<Int, TypeSer>) : TypeSer {
 class VariantTypeSer(val innerSers: Map<Int, TypeSer>) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.VARIANT.value)
+        Leb128.writeUnsigned(buf, innerSers.size)
         innerSers.entries.forEach { (idx, ser) ->
             Leb128.writeUnsigned(buf, idx)
             ser.serType(buf)
@@ -345,7 +347,7 @@ class VariantTypeSer(val innerSers: Map<Int, TypeSer>) : TypeSer {
     }
 
     override fun calcTypeSizeBytes(): Int {
-        return Leb128.sizeSigned(IDLOpcode.VARIANT.value) +
+        return Leb128.sizeSigned(IDLOpcode.VARIANT.value) + Leb128.sizeUnsigned(innerSers.size) +
                 innerSers.entries
                     .map { (idx, ser) -> Leb128.sizeUnsigned(idx) + ser.calcTypeSizeBytes() }
                     .sum()
@@ -394,15 +396,27 @@ class FuncTypeSer(
 ) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.FUNC.value)
+
+        Leb128.writeUnsigned(buf, argsSer.size)
         argsSer.forEach { it.serType(buf) }
+
+        Leb128.writeUnsigned(buf, ressSer.size)
         ressSer.forEach { it.serType(buf) }
+
+        Leb128.writeUnsigned(buf, annsSer.size)
         annsSer.forEach { it.serType(buf) }
     }
 
     override fun calcTypeSizeBytes(): Int {
         return Leb128.sizeSigned(IDLOpcode.FUNC.value) +
+
+                Leb128.sizeUnsigned(argsSer.size) +
                 argsSer.map { it.calcTypeSizeBytes() }.sum() +
+
+                Leb128.sizeUnsigned(ressSer.size) +
                 ressSer.map { it.calcTypeSizeBytes() }.sum() +
+
+                Leb128.sizeUnsigned(annsSer.size) +
                 annsSer.map { it.calcTypeSizeBytes() }.sum()
     }
 
@@ -418,6 +432,7 @@ class FuncTypeSer(
 class ServiceTypeSer(val innerSers: Map<String, TypeSer>) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.SERVICE.value)
+        Leb128.writeUnsigned(buf, innerSers.size)
         innerSers.entries.forEach { (key, ser) ->
             val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
             Leb128.writeUnsigned(buf, keyBytes.size)
@@ -428,7 +443,7 @@ class ServiceTypeSer(val innerSers: Map<String, TypeSer>) : TypeSer {
     }
 
     override fun calcTypeSizeBytes(): Int {
-        return Leb128.sizeSigned(IDLOpcode.SERVICE.value) +
+        return Leb128.sizeSigned(IDLOpcode.SERVICE.value) + Leb128.sizeUnsigned(innerSers.size) +
                 innerSers.entries
                     .map { (key, ser) ->
                         val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
@@ -461,19 +476,20 @@ object PrincipalTypeSer : TypeSer {
 }
 
 fun getTypeSerForInnerType(type: IDLType, typeTable: TypeTable): TypeSer {
-    return if (type is IDLType.Primitive)
-        getTypeSerForType(type, typeTable)
-    else {
-        val opcode = typeTable.registerType(type)
-        CustomTypeSer(opcode)
+    return when (type) {
+        is IDLType.Primitive, is IDLType.Id -> getTypeSerForType(type, typeTable)
+        else -> {
+            val opcode = typeTable.registerType(type)
+            CustomTypeSer(opcode)
+        }
     }
 }
 
 fun getTypeSerForType(type: IDLType, typeTable: TypeTable): TypeSer {
     return when (type) {
         is IDLType.Id -> {
-            val labeledType = typeTable.getTypeByLabel(type)
-            getTypeSerForType(labeledType, typeTable)
+            val idx = typeTable.getIdxByLabel(type)
+            CustomTypeSer(idx)
         }
 
         is IDLType.Primitive.Natural -> NatTypeSer
@@ -522,7 +538,6 @@ fun getTypeSerForType(type: IDLType, typeTable: TypeTable): TypeSer {
                 when (it) {
                     IDLFuncAnn.Query -> QueryAnnTypeSer
                     IDLFuncAnn.Oneway -> OnewayAnnTypeSer
-                    else -> throw RuntimeException("Unable to get serializer for function annotation $it")
                 }
             }
 
@@ -534,7 +549,5 @@ fun getTypeSerForType(type: IDLType, typeTable: TypeTable): TypeSer {
             ServiceTypeSer(innerSers)
         }
         is IDLType.Reference.Principal -> PrincipalTypeSer
-
-        else -> throw RuntimeException("Unable to get serializer for type $type")
     }
 }
