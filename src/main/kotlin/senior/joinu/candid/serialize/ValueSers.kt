@@ -464,7 +464,7 @@ object ServiceValueSer : ValueSer<SimpleIDLService> {
             else -> throw RuntimeException("Invalid notOpaque flag met during service deserialization")
         }
 
-        return SimpleIDLService(null, id)
+        return SimpleIDLService(null, id, null)
     }
 
     override fun poetize(): String {

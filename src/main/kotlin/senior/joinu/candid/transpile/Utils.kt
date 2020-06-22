@@ -2,6 +2,7 @@ package senior.joinu.candid.transpile
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import org.whispersystems.curve25519.Curve25519KeyPair
 import senior.joinu.candid.*
 import senior.joinu.candid.serialize.FuncValueSer
 import senior.joinu.candid.serialize.ServiceValueSer
@@ -351,6 +352,7 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
         .superclass(SimpleIDLService::class)
         .addSuperclassConstructorParameter("host")
         .addSuperclassConstructorParameter("id")
+        .addSuperclassConstructorParameter("keyPair")
 
     // making a type alias for service value ser
     val actorValueSerName = context.createValueSerTypeName(actorClassName.simpleName)
@@ -361,6 +363,7 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     val constructorSpec = FunSpec.constructorBuilder()
         .addParameter("host", String::class)
         .addParameter("id", ByteArray::class.asTypeName().copy(true))
+        .addParameter("keyPair", Curve25519KeyPair::class.asTypeName().copy(true))
     actorClassBuilder.primaryConstructor(constructorSpec.build())
 
     // adding methods
