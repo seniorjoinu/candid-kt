@@ -326,9 +326,18 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     invoke.addStatement("sendBuf.put(staticPayload)")
     serStatements.forEach { invoke.addStatement(it) }
 
-    // TODO: transpile send/receive logic
+    invoke.addStatement("val sendBytes = %T(staticPayload.size + valueSizeBytes)", ByteArray::class)
+    invoke.addStatement("sendBuf.rewind()")
+    invoke.addStatement("sendBuf.get(sendBytes)")
+    invoke.addStatement("")
 
-    invoke.addStatement("val receiveBuf = %T.allocate(0)", ByteBuffer::class)
+    val sendFuncName = if (type.annotations.contains(IDLFuncAnn.Query)) {
+        "query"
+    } else {
+        "call"
+    }
+    invoke.addStatement("val receiveBytes = this.service!!.${sendFuncName}(this.funcName!!, sendBytes)")
+    invoke.addStatement("val receiveBuf = %T.allocate(receiveBytes.size)", ByteBuffer::class)
     invoke.addStatement("receiveBuf.order(%T.LITTLE_ENDIAN)", ByteOrder::class)
 
     // TODO: transpile deserUntilM logic

@@ -267,7 +267,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
         IDLType.Id(text)
     }
     private val pTextVal: Parser<IDLToken.TextVal> by tUtfScalar use {
-        IDLToken.TextVal(text)
+        IDLToken.TextVal(text.substring(1, text.length - 1))
     }
     private val pNatDec by tDec use {
         val value = text.filterNot { it == '_' }.toInt()
