@@ -1,13 +1,12 @@
 import kotlinx.coroutines.runBlocking
 import org.whispersystems.curve25519.Curve25519
 import org.whispersystems.curve25519.Curve25519KeyPair
-import senior.joinu.candid.SimpleIDLFunc
-import senior.joinu.candid.SimpleIDLService
-import senior.joinu.candid.TypeTable
+import senior.joinu.candid.*
 import senior.joinu.candid.serialize.FuncValueSer
 import senior.joinu.candid.serialize.ServiceValueSer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.charset.StandardCharsets
 import java.util.*
 
 typealias MainActorValueSer = ServiceValueSer
@@ -51,12 +50,9 @@ class MainActor(
     val greet: AnonFunc0 = AnonFunc0("greet", this)
 }
 
-fun ByteArray.toHex() = this.joinToString(separator = "") { it.toInt().and(0xff).toString(16).padStart(2, '0') }
-fun String.hexStringToByteArray() = ByteArray(this.length / 2) { this.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
-
 fun main() {
-    val id = "8926892d0bf7e563".hexStringToByteArray()
-    val cipher = Curve25519.getInstance(Curve25519.BEST)
+    val id = "e599c5a96f29a019".hexStringToByteArray()
+    val cipher = getCipher()
     val keyPair = cipher.generateKeyPair()
 
     val actor = MainActor("http://localhost:8000", id, keyPair)

@@ -178,11 +178,11 @@ class ByteBufferBackedOutputStream : OutputStream() {
         buf.order(ByteOrder.LITTLE_ENDIAN)
 
         buffer.forEach { buf.put(it.toByte()) }
-        buffer.clear()
         buf.rewind()
 
         out = ByteArray(buffer.size)
         buf.get(out)
+        buffer.clear()
     }
 
     @Throws(IOException::class)

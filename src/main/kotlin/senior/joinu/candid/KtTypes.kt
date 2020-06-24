@@ -4,6 +4,7 @@ import com.github.kittinunf.fuel.Fuel
 import com.github.kittinunf.fuel.coroutines.awaitByteArray
 import org.whispersystems.curve25519.Curve25519KeyPair
 import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 
 open class SimpleIDLService(
     var host: String?,
@@ -23,6 +24,8 @@ open class SimpleIDLService(
         val req = ICRequest(type, id!!, funcName, arg, SimpleIDLPrincipal.selfAuthenticating(keyPair!!.publicKey))
         val authReq = req.authenticate(keyPair!!)
         val body = authReq.cbor()
+
+        println(body.toString(StandardCharsets.ISO_8859_1))
 
         return Fuel.post("${host!!}/api/$apiVersion/submit")
             .body(body)
