@@ -260,7 +260,6 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     val typesSizeBytes = Leb128.sizeUnsigned(argTypeSers.size) + argTypeSers.map { it.calcTypeSizeBytes() }.sum()
     val staticPayloadSize = MAGIC_PREFIX.size + requestTypeTable.sizeBytes() + typesSizeBytes
     val staticPayloadBuf = ByteBuffer.allocate(staticPayloadSize)
-    staticPayloadBuf.order(ByteOrder.LITTLE_ENDIAN)
     staticPayloadBuf.put(MAGIC_PREFIX)
     requestTypeTable.serialize(staticPayloadBuf)
 

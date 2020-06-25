@@ -9,7 +9,6 @@ import org.whispersystems.curve25519.SecureRandomProvider
 import java.io.IOException
 import java.io.OutputStream
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.*
@@ -88,12 +87,21 @@ data class AuthenticatedICRequest(
     }
 }
 
+fun randomBytes(size: Int): ByteArray {
+    val r = Random()
+    val bytes = ByteArray(size)
+    r.nextBytes(bytes)
+
+    return bytes
+}
+
 data class ICRequest(
     val requestType: IDLFuncRequestType,
     val canisterId: ByteArray,
     val methodName: String,
     val arg: ByteArray,
-    val sender: SimpleIDLPrincipal
+    val sender: SimpleIDLPrincipal,
+    val nonce: ByteArray = randomBytes(32)
 ) {
     val id: ByteArray by lazy {
         val traversed = listOf(
@@ -101,7 +109,8 @@ data class ICRequest(
             Pair(hash("canister_id"), hash(canisterId)),
             Pair(hash("method_name"), hash(methodName)),
             Pair(hash("arg"), hash(arg)),
-            Pair(hash("sender"), hash(sender.id!!))
+            Pair(hash("sender"), hash(sender.id!!)),
+            Pair(hash("nonce"), hash(nonce))
         )
 
         val sorted = traversed.sortedWith(kotlin.Comparator { o1, o2 ->
@@ -115,7 +124,7 @@ data class ICRequest(
         })
         val concatenatedSize = sorted.map { it.first.size + it.second.size }.sum()
         val concatenatedBuf = ByteBuffer.allocate(concatenatedSize)
-        concatenatedBuf.order(ByteOrder.LITTLE_ENDIAN)
+
         sorted.forEach {
             concatenatedBuf.put(it.first)
             concatenatedBuf.put(it.second)
@@ -175,7 +184,6 @@ class ByteBufferBackedOutputStream : OutputStream() {
 
     override fun flush() {
         val buf = ByteBuffer.allocate(buffer.size)
-        buf.order(ByteOrder.LITTLE_ENDIAN)
 
         buffer.forEach { buf.put(it.toByte()) }
         buf.rewind()
