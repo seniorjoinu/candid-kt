@@ -3,33 +3,57 @@ package senior.joinu.candid
 import co.nstant.`in`.cbor.CborBuilder
 import co.nstant.`in`.cbor.CborEncoder
 import co.nstant.`in`.cbor.builder.MapBuilder
-import org.whispersystems.curve25519.Curve25519
-import org.whispersystems.curve25519.Curve25519KeyPair
-import org.whispersystems.curve25519.SecureRandomProvider
+import net.i2p.crypto.eddsa.EdDSAEngine
+import net.i2p.crypto.eddsa.EdDSAPrivateKey
+import net.i2p.crypto.eddsa.EdDSAPublicKey
+import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable
+import net.i2p.crypto.eddsa.spec.EdDSAParameterSpec
+import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec
+import net.i2p.crypto.eddsa.spec.EdDSAPublicKeySpec
 import java.io.IOException
 import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.security.Signature
 import java.util.*
 
 
-class InsecureRandomProvider : SecureRandomProvider {
-    private val r = Random()
+val EDDSA_SPEC: EdDSAParameterSpec = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519)
 
-    override fun nextBytes(output: ByteArray?) {
-        r.nextBytes(output)
-    }
+data class EdDSAKeyPair(val pub: EdDSAPublicKey, val priv: EdDSAPrivateKey) {
+    companion object {
+        fun generateInsecure(): EdDSAKeyPair {
+            val seed = randomBytes(32)
+            return fromSeed(seed)
+        }
 
-    override fun nextInt(maxValue: Int): Int {
-        return r.nextInt(maxValue)
+        fun fromSeed(seed: ByteArray): EdDSAKeyPair {
+            val privSpec = EdDSAPrivateKeySpec(seed, EDDSA_SPEC)
+            val priv = EdDSAPrivateKey(privSpec)
+            val pubSpec = EdDSAPublicKeySpec(priv.a, EDDSA_SPEC)
+            val pub = EdDSAPublicKey(pubSpec)
+
+            return EdDSAKeyPair(pub, priv)
+        }
     }
 }
 
-fun main() {
+fun signInsecure(privKey: EdDSAPrivateKey, message: ByteArray): ByteArray {
+    val sgr: Signature = EdDSAEngine(MessageDigest.getInstance(EDDSA_SPEC.hashAlgorithm))
+    sgr.initSign(privKey)
+    sgr.update(message)
+
+    return sgr.sign()
 }
 
-fun getCipher() = Curve25519.getInstance(Curve25519.BEST, InsecureRandomProvider())
+fun verify(pubKey: EdDSAPublicKey, message: ByteArray, sig: ByteArray): Boolean {
+    val sgr: Signature = EdDSAEngine(MessageDigest.getInstance(EDDSA_SPEC.hashAlgorithm))
+    sgr.initVerify(pubKey)
+    sgr.update(message)
+
+    return sgr.verify(sig)
+}
 
 fun hash(value: String): ByteArray {
     val digest = MessageDigest.getInstance("SHA-256")
@@ -138,11 +162,10 @@ data class ICRequest(
         hash(concatenated)
     }
 
-    fun authenticate(keyPair: Curve25519KeyPair): AuthenticatedICRequest {
-        val cipher = getCipher()
-        val sign = cipher.calculateSignature(keyPair.privateKey, id)
+    fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
+        val sign = signInsecure(keyPair.priv, id)
 
-        return AuthenticatedICRequest(this, keyPair.publicKey, sign)
+        return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
     }
 
     fun cbor(name: String, builder: MapBuilder<CborBuilder>) {

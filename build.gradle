@@ -16,7 +16,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation 'com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0-alpha-3'
     implementation 'com.github.square:kotlinpoet:1.5.0'
-    implementation 'org.whispersystems:curve25519-android:0.2.5'
+    implementation 'net.i2p.crypto:eddsa:0.3.0'
     implementation 'co.nstant.in:cbor:0.9'
 
     implementation 'com.github.kittinunf.fuel:fuel:2.2.0'

@@ -1,6 +1,4 @@
 import kotlinx.coroutines.runBlocking
-import org.whispersystems.curve25519.Curve25519
-import org.whispersystems.curve25519.Curve25519KeyPair
 import senior.joinu.candid.*
 import senior.joinu.candid.serialize.FuncValueSer
 import senior.joinu.candid.serialize.ServiceValueSer
@@ -36,9 +34,6 @@ class AnonFunc0(
         sendBuf.get(sendBytes)
 
         val receiveBytes = this.service!!.call(this.funcName!!, sendBytes)
-
-        println(receiveBytes.toString(StandardCharsets.ISO_8859_1))
-
         val receiveBuf = ByteBuffer.allocate(receiveBytes.size)
         receiveBuf.order(ByteOrder.LITTLE_ENDIAN)
         val responseTypeTable = TypeTable()
@@ -50,15 +45,15 @@ class AnonFunc0(
 class MainActor(
     host: String,
     id: ByteArray?,
-    keyPair: Curve25519KeyPair?
-) : SimpleIDLService(host, id, keyPair) {
+    keyPair: EdDSAKeyPair?,
+    apiVersion: String = "v1"
+) : SimpleIDLService(host, id, keyPair, apiVersion) {
     val greet: AnonFunc0 = AnonFunc0("greet", this)
 }
 
 fun main() {
     val id = "C826CBB0239F2121".hexStringToByteArray()
-    val cipher = getCipher()
-    val keyPair = cipher.generateKeyPair()
+    val keyPair = EdDSAKeyPair.generateInsecure()
 
     val actor = MainActor("http://localhost:8000", id, keyPair)
 
