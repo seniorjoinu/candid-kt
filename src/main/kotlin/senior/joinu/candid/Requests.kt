@@ -1,8 +1,11 @@
 package senior.joinu.candid
 
 import co.nstant.`in`.cbor.CborBuilder
+import co.nstant.`in`.cbor.CborDecoder
 import co.nstant.`in`.cbor.CborEncoder
 import co.nstant.`in`.cbor.builder.MapBuilder
+import co.nstant.`in`.cbor.model.Map
+import co.nstant.`in`.cbor.model.UnicodeString
 import net.i2p.crypto.eddsa.EdDSAEngine
 import net.i2p.crypto.eddsa.EdDSAPrivateKey
 import net.i2p.crypto.eddsa.EdDSAPublicKey
@@ -10,8 +13,10 @@ import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable
 import net.i2p.crypto.eddsa.spec.EdDSAParameterSpec
 import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec
 import net.i2p.crypto.eddsa.spec.EdDSAPublicKeySpec
+import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.OutputStream
+import java.lang.RuntimeException
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -121,15 +126,162 @@ fun randomBytes(size: Int): ByteArray {
     return bytes
 }
 
-data class ICRequest(
+fun calculateRequestId(hashedFields: List<Pair<ByteArray, ByteArray>>): ByteArray {
+    val sorted = hashedFields.sortedWith(kotlin.Comparator { (k1, v1), (k2, v2) ->
+        var result = 0
+        for (i in 0..k1.size) {
+            result = k1[i].toUByte().compareTo(k2[i].toUByte())
+            if (result != 0) break
+        }
+
+        result
+    })
+    val concatenatedSize = sorted.map { it.first.size + it.second.size }.sum()
+    val concatenatedBuf = ByteBuffer.allocate(concatenatedSize)
+
+    sorted.forEach {
+        concatenatedBuf.put(it.first)
+        concatenatedBuf.put(it.second)
+    }
+    concatenatedBuf.rewind()
+    val concatenated = ByteArray(concatenatedSize)
+    concatenatedBuf.get(concatenated)
+
+    return hash(concatenated)
+}
+
+enum class ICStatusResponseType(val value: String) {
+    UNKNOWN("unknown"),
+    REPLIED("replied"),
+
+    RESERVED("")
+}
+
+sealed class ICReply {
+    data class CallReply(val arg: ByteArray): ICReply() {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as CallReply
+
+            if (!arg.contentEquals(other.arg)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return arg.contentHashCode()
+        }
+    }
+}
+
+sealed class ICStatusResponse {
+    object Unknown: ICStatusResponse()
+    data class Replied(val reply: ICReply): ICStatusResponse()
+
+    companion object {
+        fun fromCBORBytes(encodedBytes: ByteArray): ICStatusResponse {
+            val bais = ByteArrayInputStream(encodedBytes.sliceArray(3..encodedBytes.size-1))
+            val dataItems = CborDecoder(bais).decode()
+
+            assert(dataItems[0].majorType.name == "MAP") { "ICReply should contain map" }
+            val replyMap = dataItems[0] as Map
+            replyMap.keys.forEach { key ->
+                assert(key.majorType.name == "UNICODE_STRING") { "ICReply should only contain string keys" }
+
+                val value = replyMap[key]!!
+
+                // TODO: parse it correctly (!)
+
+                when (key as UnicodeString) {
+                    UnicodeString("status") ->
+                }
+
+                when (key as UnicodeString) {
+                    UnicodeString("unknown") -> return ICStatusResponse.Unknown
+                    UnicodeString("replied") -> {
+
+                    }
+                    else -> throw RuntimeException("Unknown ICReply type")
+                }
+            }
+
+            assert(dataItems[0].majorType.name == "status") { "Reply's first field should be 'status'" }
+        }
+    }
+}
+
+data class ICStatusRequest(
+    val requestId: ByteArray,
+    val sender: SimpleIDLPrincipal,
+    val requestType: IDLFuncRequestType = IDLFuncRequestType.RequestStatus,
+    val nonce: ByteArray = randomBytes(9)
+): ICRequest {
+    override val id: ByteArray by lazy {
+        val traversed = listOf(
+            Pair(hash("nonce"), hash(nonce)),
+            Pair(hash("request_id"), hash(requestId)),
+            Pair(hash("request_type"), hash(requestType.value)),
+            Pair(hash("sender"), hash(sender.id!!))
+        )
+
+        calculateRequestId(traversed)
+    }
+
+    override fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
+        val sign = signInsecure(keyPair.priv, id)
+
+        return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
+    }
+
+    override fun cbor(name: String, builder: MapBuilder<CborBuilder>) {
+        builder.putMap(name)
+            .put("nonce", nonce)
+            .put("request_id", requestId)
+            .put("request_type", requestType.value)
+            .put("sender", sender.id!!)
+            .end()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ICStatusRequest
+
+        if (!requestId.contentEquals(other.requestId)) return false
+        if (sender != other.sender) return false
+        if (requestType != other.requestType) return false
+        if (!nonce.contentEquals(other.nonce)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = requestId.contentHashCode()
+        result = 31 * result + sender.hashCode()
+        result = 31 * result + requestType.hashCode()
+        result = 31 * result + nonce.contentHashCode()
+        return result
+    }
+}
+
+interface ICRequest {
+    val id: ByteArray
+    fun cbor(name: String, builder: MapBuilder<CborBuilder>)
+    fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest
+}
+
+data class ICCommonRequest(
     val requestType: IDLFuncRequestType,
     val canisterId: ByteArray,
     val methodName: String,
     val arg: ByteArray,
     val sender: SimpleIDLPrincipal,
     val nonce: ByteArray = randomBytes(9)
-) {
-    val id: ByteArray by lazy {
+): ICRequest {
+    override val id: ByteArray by lazy {
         val traversed = listOf(
             Pair(hash("arg"), hash(arg)),
             Pair(hash("canister_id"), hash(canisterId)),
@@ -139,36 +291,16 @@ data class ICRequest(
             Pair(hash("sender"), hash(sender.id!!))
         )
 
-        val sorted = traversed.sortedWith(kotlin.Comparator { (k1, v1), (k2, v2) ->
-            var result = 0
-            for (i in 0..k1.size) {
-                result = k1[i].toUByte().compareTo(k2[i].toUByte())
-                if (result != 0) break
-            }
-
-            result
-        })
-        val concatenatedSize = sorted.map { it.first.size + it.second.size }.sum()
-        val concatenatedBuf = ByteBuffer.allocate(concatenatedSize)
-
-        sorted.forEach {
-            concatenatedBuf.put(it.first)
-            concatenatedBuf.put(it.second)
-        }
-        concatenatedBuf.rewind()
-        val concatenated = ByteArray(concatenatedSize)
-        concatenatedBuf.get(concatenated)
-
-        hash(concatenated)
+        calculateRequestId(traversed)
     }
 
-    fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
+    override fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
         val sign = signInsecure(keyPair.priv, id)
 
         return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
     }
 
-    fun cbor(name: String, builder: MapBuilder<CborBuilder>) {
+    override fun cbor(name: String, builder: MapBuilder<CborBuilder>) {
         builder.putMap(name)
             .put("arg", arg)
             .put("canister_id", canisterId)
@@ -183,7 +315,7 @@ data class ICRequest(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as ICRequest
+        other as ICCommonRequest
 
         if (requestType != other.requestType) return false
         if (canisterId != other.canisterId) return false
