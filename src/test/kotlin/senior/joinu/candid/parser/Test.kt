@@ -9,6 +9,7 @@ import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
 import java.util.*
 
+
 typealias MainActorValueSer = ServiceValueSer
 
 typealias AnonFunc0ValueSer = FuncValueSer
@@ -35,10 +36,14 @@ class AnonFunc0(
         sendBuf.get(sendBytes)
 
         val receiveBytes = this.service!!.call(this.funcName!!, sendBytes)
+
+        println(receiveBytes.toString(StandardCharsets.ISO_8859_1))
+
         val receiveBuf = ByteBuffer.allocate(receiveBytes.size)
         receiveBuf.order(ByteOrder.LITTLE_ENDIAN)
         val responseTypeTable = TypeTable()
-        return AnonFunc0Result(senior.joinu.candid.serialize.TextValueSer.deser(receiveBuf))
+        return AnonFunc0Result(senior.joinu.candid.serialize.TextValueSer.deser(receiveBuf) as
+                kotlin.String)
     }
 }
 
@@ -51,13 +56,13 @@ class MainActor(
 }
 
 fun main() {
-    val id = "e599c5a96f29a019".hexStringToByteArray()
+    val id = "C826CBB0239F2121".hexStringToByteArray()
     val cipher = getCipher()
     val keyPair = cipher.generateKeyPair()
 
     val actor = MainActor("http://localhost:8000", id, keyPair)
 
     runBlocking {
-        actor.greet("CANDID-KT")
+        actor.greet("123")
     }
 }

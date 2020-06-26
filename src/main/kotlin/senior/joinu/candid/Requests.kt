@@ -72,10 +72,12 @@ data class AuthenticatedICRequest(
         val os = ByteBufferBackedOutputStream()
         val encoder = CborEncoder(os).nonCanonical()
 
-        val builder = CborBuilder().addMap()
+        val builder = CborBuilder()
+            .addMap()
+
         content.cbor("content", builder)
         val items = builder
-            .put("sender_pub_key", senderPubKey)
+            .put("sender_pubkey", senderPubKey)
             .put("sender_sig", senderSig)
             .end()
             .build()
@@ -101,16 +103,16 @@ data class ICRequest(
     val methodName: String,
     val arg: ByteArray,
     val sender: SimpleIDLPrincipal,
-    val nonce: ByteArray = randomBytes(32)
+    val nonce: ByteArray = randomBytes(9)
 ) {
     val id: ByteArray by lazy {
         val traversed = listOf(
-            Pair(hash("request_type"), hash(requestType.value)),
+            Pair(hash("arg"), hash(arg)),
             Pair(hash("canister_id"), hash(canisterId)),
             Pair(hash("method_name"), hash(methodName)),
-            Pair(hash("arg"), hash(arg)),
-            Pair(hash("sender"), hash(sender.id!!)),
-            Pair(hash("nonce"), hash(nonce))
+            Pair(hash("nonce"), hash(nonce)),
+            Pair(hash("request_type"), hash(requestType.value)),
+            Pair(hash("sender"), hash(sender.id!!))
         )
 
         val sorted = traversed.sortedWith(kotlin.Comparator { o1, o2 ->
@@ -145,10 +147,11 @@ data class ICRequest(
 
     fun cbor(name: String, builder: MapBuilder<CborBuilder>) {
         builder.putMap(name)
-            .put("request_type", requestType.value)
+            .put("arg", arg)
             .put("canister_id", canisterId)
             .put("method_name", methodName)
-            .put("arg", arg)
+            .put("nonce", nonce)
+            .put("request_type", requestType.value)
             .put("sender", sender.id!!)
             .end()
     }
@@ -183,12 +186,13 @@ class ByteBufferBackedOutputStream : OutputStream() {
     var out: ByteArray? = null
 
     override fun flush() {
-        val buf = ByteBuffer.allocate(buffer.size)
+        val buf = ByteBuffer.allocate(buffer.size + 3)
 
+        buf.put(byteArrayOf(0xd9.toByte(), 0xd9.toByte(), 0xf7.toByte()))
         buffer.forEach { buf.put(it.toByte()) }
         buf.rewind()
 
-        out = ByteArray(buffer.size)
+        out = ByteArray(buffer.size + 3)
         buf.get(out)
         buffer.clear()
     }
