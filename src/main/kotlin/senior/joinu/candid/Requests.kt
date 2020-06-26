@@ -115,10 +115,10 @@ data class ICRequest(
             Pair(hash("sender"), hash(sender.id!!))
         )
 
-        val sorted = traversed.sortedWith(kotlin.Comparator { o1, o2 ->
+        val sorted = traversed.sortedWith(kotlin.Comparator { (k1, v1), (k2, v2) ->
             var result = 0
-            for (i in 0..o1.first.size) {
-                result = o1.first[i].compareTo(o2.first[i])
+            for (i in 0..k1.size) {
+                result = k1[i].toUByte().compareTo(k2[i].toUByte())
                 if (result != 0) break
             }
 
@@ -186,13 +186,14 @@ class ByteBufferBackedOutputStream : OutputStream() {
     var out: ByteArray? = null
 
     override fun flush() {
-        val buf = ByteBuffer.allocate(buffer.size + 3)
+        val bufSize = buffer.size + 3
+        val buf = ByteBuffer.allocate(bufSize)
 
-        buf.put(byteArrayOf(0xd9.toByte(), 0xd9.toByte(), 0xf7.toByte()))
+        buf.put(byteArrayOf(0xd9.toByte(), 0xd9.toByte(), 0xf7.toByte())) // wtf?
         buffer.forEach { buf.put(it.toByte()) }
         buf.rewind()
 
-        out = ByteArray(buffer.size + 3)
+        out = ByteArray(bufSize)
         buf.get(out)
         buffer.clear()
     }
