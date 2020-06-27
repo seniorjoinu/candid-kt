@@ -1,10 +1,7 @@
 package senior.joinu.candid.serialize
 
 import com.squareup.kotlinpoet.CodeBlock
-import senior.joinu.candid.IDLFuncAnn
-import senior.joinu.candid.IDLOpcode
-import senior.joinu.candid.IDLType
-import senior.joinu.candid.TypeTable
+import senior.joinu.candid.*
 import senior.joinu.leb128.Leb128
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -549,5 +546,153 @@ fun getTypeSerForType(type: IDLType, typeTable: TypeTable): TypeSer {
             ServiceTypeSer(innerSers)
         }
         is IDLType.Reference.Principal -> PrincipalTypeSer
+        else -> throw RuntimeException("Unknown type met during typeSer search: $type")
+    }
+}
+
+data class DeserializationContext(
+    val typeTable: TypeTable = TypeTable(),
+    val types: List<IDLType> = listOf()
+)
+
+object TypeDeser {
+    fun deserUntilM(buf: ByteBuffer): DeserializationContext {
+        readMagic(buf)
+        val typeTable = readTypeTable(buf)
+        val types = readTypes(buf, typeTable)
+
+        return DeserializationContext(typeTable, types)
+    }
+
+    fun readMagic(buf: ByteBuffer) {
+        val byteArray = ByteArray(4)
+        buf.get(byteArray)
+
+        assert(byteArray.contentEquals(MAGIC_PREFIX)) { "The first 4 bytes of the response are not magic :c" }
+    }
+
+    fun readTypeTable(buf: ByteBuffer): TypeTable {
+        val typeTable = TypeTable()
+
+        val tableSize = Leb128.readUnsigned(buf).toInt()
+
+        for (i in 0..tableSize) {
+            val type = readIDLType(buf, typeTable)
+            typeTable.registerType(type)
+        }
+
+        return typeTable
+    }
+
+    fun readTypes(buf: ByteBuffer, typeTable: TypeTable): List<IDLType> {
+        val typesCount = Leb128.readUnsigned(buf).toInt()
+
+        return (0..typesCount).map { readIDLType(buf, typeTable) }
+    }
+
+    fun readIDLType(buf: ByteBuffer, typeTable: TypeTable): IDLType {
+        val opcode = Leb128.readSigned(buf)
+
+        return when (opcode) {
+            IDLOpcode.NAT.value -> IDLType.Primitive.Natural
+            IDLOpcode.NAT8.value -> IDLType.Primitive.Nat8
+            IDLOpcode.NAT16.value -> IDLType.Primitive.Nat16
+            IDLOpcode.NAT32.value -> IDLType.Primitive.Nat32
+            IDLOpcode.NAT64.value -> IDLType.Primitive.Nat64
+
+            IDLOpcode.INT.value -> IDLType.Primitive.Integer
+            IDLOpcode.INT8.value -> IDLType.Primitive.Int8
+            IDLOpcode.INT16.value -> IDLType.Primitive.Int16
+            IDLOpcode.INT32.value -> IDLType.Primitive.Int32
+            IDLOpcode.INT64.value -> IDLType.Primitive.Int64
+
+            IDLOpcode.FLOAT32.value -> IDLType.Primitive.Float32
+            IDLOpcode.FLOAT64.value -> IDLType.Primitive.Float64
+
+            IDLOpcode.BOOL.value -> IDLType.Primitive.Bool
+            IDLOpcode.TEXT.value -> IDLType.Primitive.Text
+            IDLOpcode.NULL.value -> IDLType.Primitive.Null
+            IDLOpcode.RESERVED.value -> IDLType.Primitive.Reserved
+            IDLOpcode.EMPTY.value -> IDLType.Primitive.Empty
+
+            IDLOpcode.OPT.value -> {
+                val innerType = readIDLType(buf, typeTable)
+                IDLType.Constructive.Opt(innerType)
+            }
+            IDLOpcode.VEC.value -> {
+                val innerType = readIDLType(buf, typeTable)
+
+                if (innerType is IDLType.Primitive.Nat8)
+                    IDLType.Constructive.Blob
+                else
+                    IDLType.Constructive.Vec(innerType)
+            }
+            IDLOpcode.RECORD.value -> {
+                val fieldCount = Leb128.readUnsigned(buf)
+                val fields = (0..fieldCount).map {
+                    val id = Leb128.readUnsigned(buf)
+                    val type = readIDLType(buf, typeTable)
+
+                    IDLFieldType(null, type, id)
+                }
+
+                IDLType.Constructive.Record(fields)
+            }
+            IDLOpcode.VARIANT.value -> {
+                val fieldCount = Leb128.readUnsigned(buf)
+                val fields = (0..fieldCount).map {
+                    val id = Leb128.readUnsigned(buf)
+                    val type = readIDLType(buf, typeTable)
+
+                    IDLFieldType(null, type, id)
+                }
+
+                IDLType.Constructive.Variant(fields)
+            }
+
+            IDLOpcode.FUNC.value -> {
+                val argumentCount = Leb128.readUnsigned(buf)
+                val arguments = (0..argumentCount).map { IDLArgType(null, readIDLType(buf, typeTable)) }
+
+                val resultsCount = Leb128.readUnsigned(buf).toInt()
+                val results = (0..resultsCount).map { IDLArgType(null, readIDLType(buf, typeTable)) }
+
+                val annotationsCount = Leb128.readUnsigned(buf).toInt()
+                val annotations = (0..annotationsCount).map {
+                    val byte = buf.get()
+                    when (byte.toInt()) {
+                        1 -> IDLFuncAnn.Query
+                        2 -> IDLFuncAnn.Oneway
+                        else -> throw RuntimeException("Unknown function annotation met during deserialization")
+                    }
+                }
+
+                IDLType.Reference.Func(arguments, results, annotations)
+            }
+            IDLOpcode.SERVICE.value -> {
+                val methodCount = Leb128.readUnsigned(buf)
+                val methods = (0..methodCount).map {
+                    val nameLength = Leb128.readUnsigned(buf)
+                    val nameBytes = ByteArray(nameLength)
+                    buf.get(nameBytes)
+                    val nameStr = nameBytes.toString(StandardCharsets.UTF_8)
+                    val type = readIDLType(buf, typeTable)
+
+                    assert((type is IDLType.Id) or (type is IDLType.Reference.Func)) { "Method type is not valid!" }
+
+                    IDLMethod(nameStr, type as IDLMethodType)
+                }
+
+                IDLType.Reference.Service(methods)
+            }
+            IDLOpcode.PRINCIPAL.value -> IDLType.Reference.Principal
+            else -> {
+                if (opcode >= 0) {
+                    assert(typeTable.registry.size > opcode) { "Unknown type met during deserialization!" }
+                    IDLType.Other.Custom(opcode)
+                } else
+                    IDLType.Other.Future(opcode)
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ import co.nstant.`in`.cbor.CborBuilder
 import co.nstant.`in`.cbor.CborDecoder
 import co.nstant.`in`.cbor.CborEncoder
 import co.nstant.`in`.cbor.builder.MapBuilder
+import co.nstant.`in`.cbor.model.ByteString
 import co.nstant.`in`.cbor.model.Map
 import co.nstant.`in`.cbor.model.UnicodeString
 import net.i2p.crypto.eddsa.EdDSAEngine
@@ -16,7 +17,6 @@ import net.i2p.crypto.eddsa.spec.EdDSAPublicKeySpec
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.OutputStream
-import java.lang.RuntimeException
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -104,7 +104,7 @@ data class AuthenticatedICRequest(
         val builder = CborBuilder()
             .addMap()
 
-        content.cbor("content", builder)
+        content.toCBOR("content", builder)
         val items = builder
             .put("sender_pubkey", senderPubKey)
             .put("sender_sig", senderSig)
@@ -150,64 +150,53 @@ fun calculateRequestId(hashedFields: List<Pair<ByteArray, ByteArray>>): ByteArra
     return hash(concatenated)
 }
 
-enum class ICStatusResponseType(val value: String) {
-    UNKNOWN("unknown"),
-    REPLIED("replied"),
+data class ICReply(val arg: ByteArray) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
 
-    RESERVED("")
-}
+        other as ICReply
 
-sealed class ICReply {
-    data class CallReply(val arg: ByteArray): ICReply() {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
+        if (!arg.contentEquals(other.arg)) return false
 
-            other as CallReply
+        return true
+    }
 
-            if (!arg.contentEquals(other.arg)) return false
+    override fun hashCode(): Int {
+        return arg.contentHashCode()
+    }
 
-            return true
-        }
-
-        override fun hashCode(): Int {
-            return arg.contentHashCode()
+    companion object {
+        fun fromCBORMap(replyMap: Map): ICReply {
+            val arg = replyMap[UnicodeString("arg")] as ByteString
+            return ICReply(arg.bytes)
         }
     }
 }
 
 sealed class ICStatusResponse {
-    object Unknown: ICStatusResponse()
-    data class Replied(val reply: ICReply): ICStatusResponse()
+    object Unknown : ICStatusResponse()
+    data class Replied(val reply: ICReply) : ICStatusResponse()
 
     companion object {
         fun fromCBORBytes(encodedBytes: ByteArray): ICStatusResponse {
-            val bais = ByteArrayInputStream(encodedBytes.sliceArray(3..encodedBytes.size-1))
+            val bais = ByteArrayInputStream(encodedBytes.sliceArray(3 until encodedBytes.size))
             val dataItems = CborDecoder(bais).decode()
 
             assert(dataItems[0].majorType.name == "MAP") { "ICReply should contain map" }
-            val replyMap = dataItems[0] as Map
-            replyMap.keys.forEach { key ->
-                assert(key.majorType.name == "UNICODE_STRING") { "ICReply should only contain string keys" }
+            val responseMap = dataItems[0] as Map
+            val status = responseMap[UnicodeString("status")] as UnicodeString
 
-                val value = replyMap[key]!!
-
-                // TODO: parse it correctly (!)
-
-                when (key as UnicodeString) {
-                    UnicodeString("status") ->
+            return when (status.toString()) {
+                "unknown" -> Unknown
+                "replied" -> {
+                    val reply = responseMap[UnicodeString("reply")] as Map
+                    Replied(
+                        ICReply.fromCBORMap(reply)
+                    )
                 }
-
-                when (key as UnicodeString) {
-                    UnicodeString("unknown") -> return ICStatusResponse.Unknown
-                    UnicodeString("replied") -> {
-
-                    }
-                    else -> throw RuntimeException("Unknown ICReply type")
-                }
+                else -> throw RuntimeException("Unknown ICReply type")
             }
-
-            assert(dataItems[0].majorType.name == "status") { "Reply's first field should be 'status'" }
         }
     }
 }
@@ -217,7 +206,7 @@ data class ICStatusRequest(
     val sender: SimpleIDLPrincipal,
     val requestType: IDLFuncRequestType = IDLFuncRequestType.RequestStatus,
     val nonce: ByteArray = randomBytes(9)
-): ICRequest {
+) : ICRequest {
     override val id: ByteArray by lazy {
         val traversed = listOf(
             Pair(hash("nonce"), hash(nonce)),
@@ -235,7 +224,7 @@ data class ICStatusRequest(
         return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
     }
 
-    override fun cbor(name: String, builder: MapBuilder<CborBuilder>) {
+    override fun toCBOR(name: String, builder: MapBuilder<CborBuilder>) {
         builder.putMap(name)
             .put("nonce", nonce)
             .put("request_id", requestId)
@@ -269,7 +258,7 @@ data class ICStatusRequest(
 
 interface ICRequest {
     val id: ByteArray
-    fun cbor(name: String, builder: MapBuilder<CborBuilder>)
+    fun toCBOR(name: String, builder: MapBuilder<CborBuilder>)
     fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest
 }
 
@@ -280,7 +269,7 @@ data class ICCommonRequest(
     val arg: ByteArray,
     val sender: SimpleIDLPrincipal,
     val nonce: ByteArray = randomBytes(9)
-): ICRequest {
+) : ICRequest {
     override val id: ByteArray by lazy {
         val traversed = listOf(
             Pair(hash("arg"), hash(arg)),
@@ -300,7 +289,7 @@ data class ICCommonRequest(
         return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
     }
 
-    override fun cbor(name: String, builder: MapBuilder<CborBuilder>) {
+    override fun toCBOR(name: String, builder: MapBuilder<CborBuilder>) {
         builder.putMap(name)
             .put("arg", arg)
             .put("canister_id", canisterId)

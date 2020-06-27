@@ -3,7 +3,6 @@ package senior.joinu.candid
 import com.github.kittinunf.fuel.Fuel
 import com.github.kittinunf.fuel.coroutines.awaitByteArrayResult
 import kotlinx.coroutines.delay
-import java.lang.RuntimeException
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
@@ -11,27 +10,28 @@ open class SimpleIDLService(
     var host: String?,
     val id: ByteArray?,
     var keyPair: EdDSAKeyPair?,
-    var apiVersion: String = "v1"
+    var apiVersion: String = "v1",
+    var pollingInterval: Long = 100
 ) {
     suspend fun call(funcName: String, arg: ByteArray): ByteArray {
         val requestId = submit(funcName, IDLFuncRequestType.Call, arg)
 
-        val result = requestStatus(requestId)
-        delay(1000)
-        val result1 = requestStatus(requestId)
-        delay(1000)
-        val result2 = requestStatus(requestId)
-        delay(1000)
-        val result3 = requestStatus(requestId)
+        var status: ICStatusResponse
+        while (true) {
+            status = requestStatus(requestId)
+            if (status is ICStatusResponse.Replied) break
 
-        return requestId
+            delay(pollingInterval)
+        }
+
+        return (status as ICStatusResponse.Replied).reply.arg
     }
 
     suspend fun query(funcName: String, arg: ByteArray): ByteArray {
         return read(funcName, IDLFuncRequestType.Query, arg)
     }
 
-    suspend fun requestStatus(requestId: ByteArray): ByteArray {
+    suspend fun requestStatus(requestId: ByteArray): ICStatusResponse {
         val req = ICStatusRequest(
             requestId,
             SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte)
@@ -49,9 +49,7 @@ open class SimpleIDLService(
             throw RuntimeException(errorMessage, error)
         }
 
-        ICStatusResponse.fromCBORBytes(responseBody!!)
-
-        return responseBody
+        return ICStatusResponse.fromCBORBytes(responseBody!!)
     }
 
     suspend fun submit(funcName: String, type: IDLFuncRequestType, arg: ByteArray): ByteArray {

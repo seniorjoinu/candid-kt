@@ -3,10 +3,7 @@ package senior.joinu.candid.transpile
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import senior.joinu.candid.*
-import senior.joinu.candid.serialize.FuncValueSer
-import senior.joinu.candid.serialize.ServiceValueSer
-import senior.joinu.candid.serialize.ValueSer
-import senior.joinu.candid.serialize.getTypeSerForType
+import senior.joinu.candid.serialize.*
 import senior.joinu.leb128.Leb128
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -337,9 +334,7 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     invoke.addStatement("val receiveBytes = this.service!!.${sendFuncName}(this.funcName!!, sendBytes)")
     invoke.addStatement("val receiveBuf = %T.allocate(receiveBytes.size)", ByteBuffer::class)
     invoke.addStatement("receiveBuf.order(%T.LITTLE_ENDIAN)", ByteOrder::class)
-
-    // TODO: transpile deserUntilM logic
-    invoke.addStatement("val responseTypeTable = %T()", TypeTable::class)
+    invoke.addStatement("val deserContext = %T.deserUntilM(receiveBuf)", TypeDeser::class)
 
     val deserBody = deserStatements.joinToString(
         prefix = "return ${returnValueTypeName.simpleName}(",

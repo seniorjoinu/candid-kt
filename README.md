@@ -1,6 +1,11 @@
 ### Work in progress
 You can inspect currently generated code in the `test` dir - result of input `.did` from `GrammarTest.kt` is saved into `Test.kt`
 
+### What's missing
+* imports
+* future types
+* tests
+
 ### Type conversion rules
 | IDL | Kotlin |
 | --- | --- |

@@ -335,7 +335,7 @@ sealed class IDLType {
         }
     }
 
-    /*sealed class Other : IDLType() {
+    sealed class Other : IDLType() {
         data class Custom(val opcode: Int) : Other() {
             override fun poetize() = CodeBlock.of("%T($opcode)", Custom::class).toString()
         }
@@ -343,7 +343,7 @@ sealed class IDLType {
         data class Future(val opcode: Int) : Other() {
             override fun poetize() = CodeBlock.of("%T($opcode)", Future::class).toString()
         }
-    }*/
+    }
 }
 
 data class IDLFieldType(val name: String?, val type: IDLType, var idx: Int) {
