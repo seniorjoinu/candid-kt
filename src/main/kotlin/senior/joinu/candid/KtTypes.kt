@@ -5,10 +5,16 @@ import com.github.kittinunf.fuel.coroutines.awaitByteArrayResult
 import kotlinx.coroutines.delay
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
+import java.util.*
+import java.util.zip.CRC32
+import java.util.zip.Checksum
+import kotlin.experimental.and
+import kotlin.experimental.xor
+import kotlin.math.absoluteValue
 
 open class SimpleIDLService(
     var host: String?,
-    val id: ByteArray?,
+    val id: CanisterId?,
     var keyPair: EdDSAKeyPair?,
     var apiVersion: String = "v1",
     var pollingInterval: Long = 100
@@ -57,7 +63,7 @@ open class SimpleIDLService(
     }
 
     suspend fun submit(funcName: String, type: IDLFuncRequestType, arg: ByteArray): ByteArray {
-        val req = ICCommonRequest(type, id!!, funcName, arg, SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte))
+        val req = ICCommonRequest(type, id!!.data, funcName, arg, SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte))
         val authReq = req.authenticate(keyPair!!)
         val body = authReq.cbor()
 
@@ -75,7 +81,7 @@ open class SimpleIDLService(
     }
 
     suspend fun read(funcName: String, type: IDLFuncRequestType, arg: ByteArray): ByteArray {
-        val req = ICCommonRequest(type, id!!, funcName, arg, SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte))
+        val req = ICCommonRequest(type, id!!.data, funcName, arg, SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte))
         val authReq = req.authenticate(keyPair!!)
         val body = authReq.cbor()
 
@@ -126,3 +132,30 @@ open class SimpleIDLPrincipal(
 object Null
 object Reserved
 object Empty
+
+data class CanisterId(val data: ByteArray) {
+    companion object {
+        fun fromCanonical(id: String): CanisterId {
+            check(id.substring(0 until 3) == "ic:") { "'ic' prefix not found" }
+            val idHex = id.substring(3 until id.length-2)
+            val actualCRCHex = id.substring(id.length-2 until id.length)
+            val expectedCRCHex = CRC8.calc(idHex.hexStringToByteArray()).toInt().absoluteValue.toString(16)
+            check(actualCRCHex.toLowerCase() == expectedCRCHex.toLowerCase()) { "CRC doesn't match" }
+
+            return CanisterId(idHex.hexStringToByteArray())
+        }
+    }
+}
+
+object CRC8 {
+    private val table = Base64.getDecoder().decode("AAcMCRwXEhEuMywxHh0iJXB3fnlsa2JlOk84NVRTWl3g5+7p/Pvy9djf1tHEw8rNkJeemYyLgoWor6ahtLO6vcfAyc7b3NXS//jx9uPk7eq3sLm+q6yloo+IgYaTlJ2aJxohJjswKygZFA8SAwQLCFdQWV49PkU2b2hhZnN0fXqJjoeAlZKbnLG2v7itqqOk+f738OXi6+zBxs/I3drT1GluZ2B1cnt8UVZfWD88N0QVGBMOBQIJChsmJyAxOikqTjs0OVJVXFt2cXh/am1kYzIvMC0cHyQjBgEIDRYdEBOuqaCnsrW8u5aRmJ+KjYSD3tnQ18LFzMvm4ejv+v308w==")
+
+    fun calc(data: ByteArray): Byte {
+        var result = 0.toByte()
+        for (byte in data) {
+            result = table[(result xor byte).toInt().absoluteValue]
+        }
+
+        return result
+    }
+}

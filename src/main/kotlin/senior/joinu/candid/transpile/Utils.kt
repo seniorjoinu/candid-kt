@@ -340,7 +340,7 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     invoke.addStatement("val deserContext = %T.deserUntilM(receiveBuf)", TypeDeser::class)
 
     val deserBody = deserStatements.joinToString(
-        prefix = "return ${returnValueTypeName.simpleName}(",
+        prefix = "return·${returnValueTypeName.simpleName}(",
         postfix = ")"
     )
     invoke.addStatement(deserBody)
@@ -368,7 +368,7 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     // creating a constructor
     val constructorSpec = FunSpec.constructorBuilder()
         .addParameter("host", String::class)
-        .addParameter("id", ByteArray::class.asTypeName().copy(true))
+        .addParameter("id", CanisterId::class.asTypeName().copy(true))
         .addParameter("keyPair", EdDSAKeyPair::class.asTypeName().copy(true))
     val apiVersionParam = ParameterSpec.builder("apiVersion", String::class.asTypeName()).defaultValue("%S", "v1")
     constructorSpec.addParameter(apiVersionParam.build())

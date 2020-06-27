@@ -33,7 +33,40 @@ class GrammarTest {
             }
         """.trimIndent()
 
-        val program = IDLGrammar.parseToEnd(testCandid1)
+        val testCandid2 = """
+            type List_2 = 
+             opt record {
+                   text;
+                   List_2;
+                 };
+            type List = 
+             opt record {
+                   Key;
+                   List;
+                 };
+            type Key = 
+             record {
+               "image": vec nat8;
+               "preimage": vec nat8;
+             };
+            type Bucket = List;
+            service : {
+              "configure": (text) -> ();
+              "get": (vec nat8) -> (opt vec nat8);
+              "getInHex": (text) -> (opt text);
+              "getWithTrace": (vec nat8, Bucket) -> (opt vec nat8);
+              "initialize": () -> ();
+              "peers": () -> (List_2);
+              "ping": () -> ();
+              "put": (vec nat8, vec nat8) -> (bool);
+              "putInHex": (text, text) -> (bool);
+              "putWithTrace": (vec nat8, vec nat8, Bucket) -> (bool);
+              "size": () -> (nat);
+              "whoami": () -> (text);
+            }
+        """.trimIndent()
+
+        val program = IDLGrammar.parseToEnd(testCandid2)
         val ktContext = KtTranspiler.transpile(program, "", "Test.kt")
 
         val fileSpec = ktContext.currentSpec.build()

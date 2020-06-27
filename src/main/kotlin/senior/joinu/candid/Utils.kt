@@ -11,7 +11,7 @@ fun idlHash(id: String): Int {
         acc + char.toLong().toBigInteger() * BigInteger.valueOf(223).pow((id.length - 1) - idx)
     }
 
-    return result.mod(twoPowThirtyTwo).intValueExact()
+    return result.mod(twoPowThirtyTwo).toInt()
 }
 
 
