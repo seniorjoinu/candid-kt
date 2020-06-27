@@ -687,11 +687,13 @@ object TypeDeser {
             }
             IDLOpcode.PRINCIPAL.value -> IDLType.Reference.Principal
             else -> {
-                if (opcode >= 0) {
+                if (opcode > 0) {
                     assert(typeTable.registry.size > opcode) { "Unknown type met during deserialization!" }
                     IDLType.Other.Custom(opcode)
-                } else
+                } else {
                     IDLType.Other.Future(opcode)
+                    throw RuntimeException("Future type met during deserialization (not supported yet)")
+                }
             }
         }
     }
