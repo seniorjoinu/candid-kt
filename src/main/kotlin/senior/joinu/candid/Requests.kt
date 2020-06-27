@@ -6,6 +6,7 @@ import co.nstant.`in`.cbor.CborEncoder
 import co.nstant.`in`.cbor.builder.MapBuilder
 import co.nstant.`in`.cbor.model.ByteString
 import co.nstant.`in`.cbor.model.Map
+import co.nstant.`in`.cbor.model.Number
 import co.nstant.`in`.cbor.model.UnicodeString
 import net.i2p.crypto.eddsa.EdDSAEngine
 import net.i2p.crypto.eddsa.EdDSAPrivateKey
@@ -177,6 +178,7 @@ data class ICReply(val arg: ByteArray) {
 sealed class ICStatusResponse {
     object Unknown : ICStatusResponse()
     data class Replied(val reply: ICReply) : ICStatusResponse()
+    data class Rejected(val rejectCode: Int, val rejectMessage: String) : ICStatusResponse()
 
     companion object {
         fun fromCBORBytes(encodedBytes: ByteArray): ICStatusResponse {
@@ -194,6 +196,12 @@ sealed class ICStatusResponse {
                     Replied(
                         ICReply.fromCBORMap(reply)
                     )
+                }
+                "rejected" -> {
+                    val rejectCode = responseMap[UnicodeString("reject_code")] as Number
+                    val rejectMessage = responseMap[UnicodeString("reject_message")] as UnicodeString
+
+                    Rejected(rejectCode.value.intValueExact(), rejectMessage.string)
                 }
                 else -> throw RuntimeException("Unknown ICReply type")
             }

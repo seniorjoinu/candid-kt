@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets
 import java.util.*
 
 
-
 typealias MainActorValueSer = ServiceValueSer
 
 typealias AnonFunc0ValueSer = FuncValueSer
@@ -22,7 +21,7 @@ class AnonFunc0(
     funcName: String?,
     service: SimpleIDLService?
 ) : SimpleIDLFunc(funcName, service) {
-    val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAABcQ==")
+    val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAAgA==")
 
     suspend operator fun invoke(arg0: String): AnonFunc0Result {
         val arg0ValueSer = senior.joinu.candid.serialize.TextValueSer

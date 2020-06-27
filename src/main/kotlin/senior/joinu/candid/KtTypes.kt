@@ -17,9 +17,13 @@ open class SimpleIDLService(
         val requestId = submit(funcName, IDLFuncRequestType.Call, arg)
 
         var status: ICStatusResponse
-        while (true) {
+        loop@while (true) {
             status = requestStatus(requestId)
-            if (status is ICStatusResponse.Replied) break
+            when (status) {
+                is ICStatusResponse.Replied -> break@loop
+                is ICStatusResponse.Rejected -> throw RuntimeException("Request was rejected. code: ${status.rejectCode}, message: ${status.rejectMessage}")
+                else -> {}
+            }
 
             delay(pollingInterval)
         }
