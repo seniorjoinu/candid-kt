@@ -574,7 +574,9 @@ object TypeDeser {
     fun readTypeTable(buf: ByteBuffer): TypeTable {
         val typeTable = TypeTable()
 
-        val tableSize = Leb128.readUnsigned(buf).toInt()
+        val tableSize = Leb128.readUnsigned(buf)
+
+        if (tableSize == 0) return typeTable
 
         for (i in 0..tableSize) {
             val type = readIDLType(buf, typeTable)
@@ -585,7 +587,9 @@ object TypeDeser {
     }
 
     fun readTypes(buf: ByteBuffer, typeTable: TypeTable): List<IDLType> {
-        val typesCount = Leb128.readUnsigned(buf).toInt()
+        val typesCount = Leb128.readUnsigned(buf)
+
+        if (typesCount == 0) return emptyList()
 
         return (0..typesCount).map { readIDLType(buf, typeTable) }
     }

@@ -2,10 +2,12 @@ import kotlinx.coroutines.runBlocking
 import senior.joinu.candid.*
 import senior.joinu.candid.serialize.FuncValueSer
 import senior.joinu.candid.serialize.ServiceValueSer
+import senior.joinu.candid.serialize.TypeDeser
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
 import java.util.*
+
 
 
 typealias MainActorValueSer = ServiceValueSer
@@ -36,7 +38,7 @@ class AnonFunc0(
         val receiveBytes = this.service!!.call(this.funcName!!, sendBytes)
         val receiveBuf = ByteBuffer.allocate(receiveBytes.size)
         receiveBuf.order(ByteOrder.LITTLE_ENDIAN)
-        val responseTypeTable = TypeTable()
+        val deserContext = TypeDeser.deserUntilM(receiveBuf)
         return AnonFunc0Result(senior.joinu.candid.serialize.TextValueSer.deser(receiveBuf) as
                 kotlin.String)
     }
@@ -58,6 +60,8 @@ fun main() {
     val actor = MainActor("http://localhost:8000", id, keyPair)
 
     runBlocking {
-        actor.greet("123")
+        val (resp) = actor.greet("123")
+
+        println(resp)
     }
 }
