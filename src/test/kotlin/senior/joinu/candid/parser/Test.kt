@@ -21,7 +21,7 @@ class AnonFunc0(
     funcName: String?,
     service: SimpleIDLService?
 ) : SimpleIDLFunc(funcName, service) {
-    val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAAgA==")
+    val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAABcQ==")
 
     suspend operator fun invoke(arg0: String): AnonFunc0Result {
         val arg0ValueSer = senior.joinu.candid.serialize.TextValueSer

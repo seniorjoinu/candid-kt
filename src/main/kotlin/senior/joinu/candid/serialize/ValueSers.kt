@@ -260,12 +260,12 @@ object TextValueSer : ValueSer<String> {
     override fun calcSizeBytes(value: String): Int {
         val strBytes = value.toByteArray(StandardCharsets.UTF_8)
 
-        return Leb128.sizeSigned(strBytes.size.toLong()) + strBytes.size
+        return Leb128.sizeSigned(strBytes.size) + strBytes.size
     }
 
     override fun ser(buf: ByteBuffer, value: String) {
         val strBytes = value.toByteArray(StandardCharsets.UTF_8)
-        Leb128.writeUnsigned(buf, strBytes.size.toLong())
+        Leb128.writeUnsigned(buf, strBytes.size)
         buf.put(strBytes)
     }
 
@@ -362,11 +362,11 @@ class OptValueSer<T : Any>(val innerSer: ValueSer<T>) : ValueSer<T?> {
 
 class VecValueSer<T>(val innerSer: ValueSer<T>) : ValueSer<List<T>> {
     override fun calcSizeBytes(value: List<T>): Int {
-        return Leb128.sizeUnsigned(value.size.toLong()) + value.map { innerSer.calcSizeBytes(it) }.sum()
+        return Leb128.sizeUnsigned(value.size) + value.map { innerSer.calcSizeBytes(it) }.sum()
     }
 
     override fun ser(buf: ByteBuffer, value: List<T>) {
-        Leb128.writeUnsigned(buf, value.size.toLong())
+        Leb128.writeUnsigned(buf, value.size)
 
         for (entry in value) {
             innerSer.ser(buf, entry)
@@ -385,11 +385,11 @@ class VecValueSer<T>(val innerSer: ValueSer<T>) : ValueSer<List<T>> {
 
 object BlobValueSer : ValueSer<ByteArray> {
     override fun calcSizeBytes(value: ByteArray): Int {
-        return Leb128.sizeUnsigned(value.size.toLong()) + value.size
+        return Leb128.sizeUnsigned(value.size) + value.size
     }
 
     override fun ser(buf: ByteBuffer, value: ByteArray) {
-        Leb128.writeUnsigned(buf, value.size.toLong())
+        Leb128.writeUnsigned(buf, value.size)
 
         buf.put(value)
     }

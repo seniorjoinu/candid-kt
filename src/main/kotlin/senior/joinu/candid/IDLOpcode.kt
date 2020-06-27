@@ -1,6 +1,6 @@
 package senior.joinu.candid
 
-enum class IDLOpcode(val value: Long) {
+enum class IDLOpcode(val value: Int) {
     NULL(-1),
     BOOL(-2),
     NAT(-3),
