@@ -140,7 +140,7 @@ fun transpileVariant(
         .addModifiers(KModifier.OVERRIDE)
         .addParameter("buf", ByteBuffer::class)
         .returns(variantSuperName)
-        .addStatement("val idx = %T.readUnsigned(buf)", Leb128::class)
+        .addStatement("val idx = %T.readUnsigned(buf).toInt()", Leb128::class)
     val deserFuncStatements = mutableListOf<String>()
 
     type.fields.forEach { field ->
@@ -164,7 +164,7 @@ fun transpileVariant(
 
         calcSizeBytesFuncStatements.add(
             CodeBlock.of(
-                "is %T.%T -> %T.sizeUnsigned(${field.idx}) + ${variantValueSer}.calcSizeBytes(value.value)",
+                "is %T.%T -> %T.sizeUnsigned(${field.idx}).toInt() + ${variantValueSer}.calcSizeBytes(value.value).toInt()",
                 variantSuperName, variantClassName, Leb128::class
             ).toString()
         )
@@ -173,7 +173,7 @@ fun transpileVariant(
             CodeBlock.of(
                 """
                     is %T.%T -> {
-                        %T.writeUnsigned(buf, ${field.idx})
+                        %T.writeUnsigned(buf, ${field.idx}.toLong())
                         ${variantValueSer}.ser(buf, value.value)
                     }
                 """.trimIndent(),
@@ -253,13 +253,14 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
         context.typeTable.copyLabelsForType(arg.type, requestTypeTable)
         getTypeSerForType(arg.type, requestTypeTable)
     }
-    val typesSizeBytes = Leb128.sizeUnsigned(argTypeSers.size) + argTypeSers.map { it.calcTypeSizeBytes() }.sum()
+    val typesSizeBytes =
+        Leb128.sizeUnsigned(argTypeSers.size.toLong()) + argTypeSers.map { it.calcTypeSizeBytes() }.sum()
     val staticPayloadSize = MAGIC_PREFIX.size + requestTypeTable.sizeBytes() + typesSizeBytes
     val staticPayloadBuf = ByteBuffer.allocate(staticPayloadSize)
     staticPayloadBuf.put(MAGIC_PREFIX)
     requestTypeTable.serialize(staticPayloadBuf)
 
-    Leb128.writeUnsigned(staticPayloadBuf, argTypeSers.size)
+    Leb128.writeUnsigned(staticPayloadBuf, argTypeSers.size.toLong())
     argTypeSers.forEach { it.serType(staticPayloadBuf) }
 
     staticPayloadBuf.rewind()
