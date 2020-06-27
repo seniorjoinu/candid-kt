@@ -334,6 +334,8 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     invoke.addStatement("val receiveBytes = this.service!!.${sendFuncName}(this.funcName!!, sendBytes)")
     invoke.addStatement("val receiveBuf = %T.allocate(receiveBytes.size)", ByteBuffer::class)
     invoke.addStatement("receiveBuf.order(%T.LITTLE_ENDIAN)", ByteOrder::class)
+    invoke.addStatement("receiveBuf.put(receiveBytes)")
+    invoke.addStatement("receiveBuf.rewind()")
     invoke.addStatement("val deserContext = %T.deserUntilM(receiveBuf)", TypeDeser::class)
 
     val deserBody = deserStatements.joinToString(

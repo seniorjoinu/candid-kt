@@ -183,7 +183,7 @@ sealed class ICStatusResponse {
             val bais = ByteArrayInputStream(encodedBytes.sliceArray(3 until encodedBytes.size))
             val dataItems = CborDecoder(bais).decode()
 
-            assert(dataItems[0].majorType.name == "MAP") { "ICReply should contain map" }
+            check(dataItems[0].majorType.name == "MAP") { "ICReply should contain map" }
             val responseMap = dataItems[0] as Map
             val status = responseMap[UnicodeString("status")] as UnicodeString
 

@@ -38,6 +38,8 @@ class AnonFunc0(
         val receiveBytes = this.service!!.call(this.funcName!!, sendBytes)
         val receiveBuf = ByteBuffer.allocate(receiveBytes.size)
         receiveBuf.order(ByteOrder.LITTLE_ENDIAN)
+        receiveBuf.put(receiveBytes)
+        receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
         return AnonFunc0Result(senior.joinu.candid.serialize.TextValueSer.deser(receiveBuf) as
                 kotlin.String)

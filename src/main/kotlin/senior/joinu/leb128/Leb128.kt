@@ -1,5 +1,6 @@
 package senior.joinu.leb128
 
+
 import senior.joinu.candid.reverseOrder
 import senior.joinu.candid.toBytesLE
 import senior.joinu.candid.toUBytesLE
@@ -9,12 +10,9 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 
 
-const val nineBits = 0xff
-const val eightBits = 0x80
-const val sevenBits = 0x7f
-
 object Leb128 {
     fun sizeUnsigned(value: Int): Int {
+        // TODO: This could be much cleverer.
         var remaining = value shr 7
         var count = 0
         while (remaining != 0) {
@@ -25,6 +23,7 @@ object Leb128 {
     }
 
     fun sizeSigned(value: Int): Int {
+        // TODO: This could be much cleverer.
         var value = value
         var remaining = value shr 7
         var count = 0
@@ -42,19 +41,18 @@ object Leb128 {
 
     fun readSigned(buf: ByteBuffer): Int {
         var result = 0
-        var cur: Int
+        var cur: Byte
         var count = 0
         var signBits = -1
         do {
-            cur = buf.int and nineBits
-            result = result or (cur and sevenBits shl count * 7)
+            cur = buf.get() and 0xff.toByte()
+            result = result or ((cur and 0x7f).toInt() shl count * 7)
             signBits = signBits shl 7
             count++
-        } while (cur and eightBits == eightBits && count < 5)
-        if (cur and eightBits == eightBits) {
+        } while (cur and 0x80.toByte() == 0x80.toByte() && count < 5)
+        if (cur and 0x80.toByte() == 0x80.toByte()) {
             throw Leb128Exception("invalid LEB128 sequence")
         }
-
         // Sign extend if appropriate
         if (signBits shr 1 and result != 0) {
             result = result or signBits
@@ -64,34 +62,32 @@ object Leb128 {
 
     fun readUnsigned(buf: ByteBuffer): Int {
         var result = 0
-        var cur: Int
+        var cur: Byte
         var count = 0
         do {
-            cur = buf.int and nineBits
-            result = result or (cur and sevenBits shl (count * 7))
+            cur = buf.get() and 0xff.toByte()
+            result = result or ((cur and 0x7f).toInt() shl count * 7)
             count++
-        } while (cur and eightBits == eightBits && count < 5)
-        if (cur and eightBits == eightBits) {
+        } while (cur and 0x80.toByte() == 0x80.toByte() && count < 5)
+        if (cur and 0x80.toByte() == 0x80.toByte()) {
             throw Leb128Exception("invalid LEB128 sequence")
         }
         return result
     }
 
-    fun writeUnsigned(buf: ByteBuffer, nat: Int) {
-        var value = nat
-
-        var remaining = value shr 7
+    fun writeUnsigned(buf: ByteBuffer, value: Int) {
+        var value = value
+        var remaining = value ushr 7
         while (remaining != 0) {
-            buf.put((value and sevenBits or eightBits).toByte())
+            buf.put((value and 0x7f or 0x80).toByte())
             value = remaining
-            remaining = remaining shr 7
+            remaining = remaining ushr 7
         }
-        buf.put((value and sevenBits).toByte())
+        buf.put((value and 0x7f).toByte())
     }
 
-    fun writeSigned(buf: ByteBuffer, int: Int) {
-        var value = int
-
+    fun writeSigned(buf: ByteBuffer, value: Int) {
+        var value = value
         var remaining = value shr 7
         var hasMore = true
         val end = if (value and Int.MIN_VALUE == 0) 0 else -1
@@ -113,13 +109,13 @@ object Leb128BI {
         var value = if (nat < BigInteger.ZERO) nat.negate() else nat
 
         while (true) {
-            val bigByte = value and BigInteger.valueOf(sevenBits.toLong())
+            val bigByte = value and BigInteger.valueOf(0x7f)
             var byte = bigByte.toUBytesLE().first()
 
             value = value shr 7
 
             if (value != BigInteger.ZERO) {
-                byte = byte or eightBits.toByte()
+                byte = byte or 0x80.toByte()
             }
 
             buf.put(byte)
@@ -135,14 +131,7 @@ object Leb128BI {
         var result = 0
 
         while (true) {
-            val bigByte = value and BigInteger.valueOf(sevenBits.toLong())
-            var byte = bigByte.toUBytesLE().first()
-
             value = value shr 7
-
-            if (value != BigInteger.ZERO) {
-                byte = byte or eightBits.toByte()
-            }
 
             result++
 
@@ -160,13 +149,13 @@ object Leb128BI {
 
         while (true) {
             var byte = buf.get()
-            byte = byte and sevenBits.toByte()
+            byte = byte and 0x7f.toByte()
 
             val lowBits = BigInteger(1, ByteArray(1) { byte })
 
             result = result or (lowBits shl shift)
 
-            if (byte and eightBits.toByte() == 0.toByte()) {
+            if (byte and 0x80.toByte() == 0.toByte()) {
                 return result.reverseOrder()
             }
 
@@ -178,21 +167,21 @@ object Leb128BI {
         var value = int
 
         while (true) {
-            val bigByte = int and BigInteger.valueOf(nineBits.toLong())
+            val bigByte = int and BigInteger.valueOf(0xff)
             var byte = bigByte.toBytesLE().first()
 
             value = value shr 6
 
             val done = value == BigInteger.ZERO || value == BigInteger.valueOf(-1)
             if (done) {
-                byte = byte and sevenBits.toByte()
+                byte = byte and 0x7f.toByte()
                 buf.put(byte)
 
                 break
             }
 
             value = value shr 1
-            byte = byte or eightBits.toByte()
+            byte = byte or 0x80.toByte()
             buf.put(byte)
         }
     }
@@ -202,21 +191,16 @@ object Leb128BI {
         var result = 0
 
         while (true) {
-            val bigByte = int and BigInteger.valueOf(nineBits.toLong())
-            var byte = bigByte.toBytesLE().first()
-
             value = value shr 6
 
             val done = value == BigInteger.ZERO || value == BigInteger.valueOf(-1)
             if (done) {
-                byte = byte and sevenBits.toByte()
                 result++
 
                 break
             }
 
             value = value shr 1
-            byte = byte or eightBits.toByte()
             result++
         }
 
@@ -230,14 +214,14 @@ object Leb128BI {
 
         while (true) {
             byte = buf.get()
-            byte = byte and sevenBits.toByte()
+            byte = byte and 0x7f.toByte()
 
             val lowBits = BigInteger(ByteArray(1) { byte })
 
             result = result or (lowBits shl shift)
             shift += 7
 
-            if (byte and eightBits.toByte() == 0.toByte()) {
+            if (byte and 0x80.toByte() == 0.toByte()) {
                 break
             }
         }

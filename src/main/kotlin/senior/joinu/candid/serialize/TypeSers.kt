@@ -568,7 +568,7 @@ object TypeDeser {
         val byteArray = ByteArray(4)
         buf.get(byteArray)
 
-        assert(byteArray.contentEquals(MAGIC_PREFIX)) { "The first 4 bytes of the response are not magic :c" }
+        check(byteArray.contentEquals(MAGIC_PREFIX)) { "The first 4 bytes of the response are not magic :c" }
     }
 
     fun readTypeTable(buf: ByteBuffer): TypeTable {
@@ -576,9 +576,7 @@ object TypeDeser {
 
         val tableSize = Leb128.readUnsigned(buf)
 
-        if (tableSize == 0) return typeTable
-
-        for (i in 0..tableSize) {
+        for (i in 0 until tableSize) {
             val type = readIDLType(buf, typeTable)
             typeTable.registerType(type)
         }
@@ -589,9 +587,7 @@ object TypeDeser {
     fun readTypes(buf: ByteBuffer, typeTable: TypeTable): List<IDLType> {
         val typesCount = Leb128.readUnsigned(buf)
 
-        if (typesCount == 0) return emptyList()
-
-        return (0..typesCount).map { readIDLType(buf, typeTable) }
+        return (0 until typesCount).map { readIDLType(buf, typeTable) }
     }
 
     fun readIDLType(buf: ByteBuffer, typeTable: TypeTable): IDLType {
@@ -682,7 +678,7 @@ object TypeDeser {
                     val nameStr = nameBytes.toString(StandardCharsets.UTF_8)
                     val type = readIDLType(buf, typeTable)
 
-                    assert((type is IDLType.Id) or (type is IDLType.Reference.Func)) { "Method type is not valid!" }
+                    check((type is IDLType.Id) or (type is IDLType.Reference.Func)) { "Method type is not valid!" }
 
                     IDLMethod(nameStr, type as IDLMethodType)
                 }
@@ -692,7 +688,7 @@ object TypeDeser {
             IDLOpcode.PRINCIPAL.value -> IDLType.Reference.Principal
             else -> {
                 if (opcode > 0) {
-                    assert(typeTable.registry.size > opcode) { "Unknown type met during deserialization!" }
+                    check(typeTable.registry.size > opcode) { "Unknown type met during deserialization!" }
                     IDLType.Other.Custom(opcode)
                 } else {
                     IDLType.Other.Future(opcode)
