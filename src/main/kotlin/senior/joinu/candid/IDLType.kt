@@ -13,7 +13,7 @@ class TypeTable(
     val labels: MutableMap<IDLType.Id, Int> = mutableMapOf()
 ) {
     fun serialize(buf: ByteBuffer) {
-        Leb128.writeUnsigned(buf, registry.size)
+        Leb128.writeUnsigned(buf, registry.size.toLong())
         registry.forEach { type ->
             val typeSer = getTypeSerForType(type, this)
             typeSer.serType(buf)
@@ -21,7 +21,7 @@ class TypeTable(
     }
 
     fun sizeBytes(): Int {
-        return Leb128.sizeUnsigned(registry.size) + registry
+        return Leb128.sizeUnsigned(registry.size.toLong()) + registry
             .map { type ->
                 val typeSer = getTypeSerForType(type, this)
                 typeSer.calcTypeSizeBytes()
@@ -336,11 +336,11 @@ sealed class IDLType {
     }
 
     sealed class Other : IDLType() {
-        data class Custom(val opcode: Int) : Other() {
+        data class Custom(val opcode: Long) : Other() {
             override fun poetize() = CodeBlock.of("%T($opcode)", Custom::class).toString()
         }
 
-        data class Future(val opcode: Int) : Other() {
+        data class Future(val opcode: Long) : Other() {
             override fun poetize() = CodeBlock.of("%T($opcode)", Future::class).toString()
         }
     }

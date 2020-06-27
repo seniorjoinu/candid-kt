@@ -9,104 +9,150 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 
 
-const val nineBits = 0xff
-const val eightBits = 0x80
-const val sevenBits = 0x7f
-
 object Leb128 {
-    fun sizeUnsigned(value: Int): Int {
-        var remaining = value shr 7
-        var count = 0
-        while (remaining != 0) {
-            remaining = remaining shr 7
-            count++
-        }
-        return count + 1
+    private const val continuationBit = (1 shl 7).toByte()
+    private const val signBit = (1 shl 6).toByte()
+
+    private fun lowBitsOfByte(byte: Byte): Byte {
+        return byte and continuationBit.unaryMinus().toByte()
     }
 
-    fun sizeSigned(value: Int): Int {
-        var value = value
-        var remaining = value shr 7
-        var count = 0
-        var hasMore = true
-        val end = if (value and Int.MIN_VALUE == 0) 0 else -1
-        while (hasMore) {
-            hasMore = (remaining != end
-                    || remaining and 1 != value shr 6 and 1)
-            value = remaining
-            remaining = remaining shr 7
-            count++
-        }
-        return count
+    private fun lowBitsOfLong(long: Long): Byte {
+        val byte = (long and Byte.MAX_VALUE.toLong()).toByte()
+        return lowBitsOfByte(byte)
     }
 
-    fun readSigned(buf: ByteBuffer): Int {
-        var result = 0
-        var cur: Int
-        var count = 0
-        var signBits = -1
-        do {
-            cur = buf.int and nineBits
-            result = result or (cur and sevenBits shl count * 7)
-            signBits = signBits shl 7
-            count++
-        } while (cur and eightBits == eightBits && count < 5)
-        if (cur and eightBits == eightBits) {
-            throw Leb128Exception("invalid LEB128 sequence")
+    fun readUnsigned(buf: ByteBuffer): Long {
+        var result = 0L
+        var shift = 0
+
+        while (true) {
+            val byte = buf.get()
+
+            if (shift == 63 && byte != 0x00.toByte() && byte != 0x01.toByte()) {
+                throw RuntimeException("Leb128 overflow")
+            }
+
+            val lowBits = lowBitsOfByte(byte).toLong()
+            result = result or (lowBits shl shift)
+
+            if (byte and continuationBit == 0.toByte()) {
+                return result
+            }
+
+            shift += 7
+        }
+    }
+
+    fun readSigned(buf: ByteBuffer): Long {
+        var result = 0L
+        var shift = 0
+        val size = 64
+        var byte: Byte
+
+        while (true) {
+            byte = buf.get()
+
+            if (shift == 63 && byte != 0x00.toByte() && byte != 0x7f.toByte()) {
+                throw RuntimeException("Leb128 overflow")
+            }
+
+            val lowBits = lowBitsOfByte(byte).toLong()
+            result = result or (lowBits shl shift)
+            shift += 7
+
+            if (byte and continuationBit == 0.toByte()) {
+                break
+            }
         }
 
-        // Sign extend if appropriate
-        if (signBits shr 1 and result != 0) {
-            result = result or signBits
+        if (shift < size && (signBit and byte) == signBit) {
+            result = result or (0.toByte().unaryMinus() shl shift).toLong()
         }
+
         return result
     }
 
-    fun readUnsigned(buf: ByteBuffer): Int {
-        var result = 0
-        var cur: Int
-        var count = 0
-        do {
-            cur = buf.int and nineBits
-            result = result or (cur and sevenBits shl (count * 7))
-            count++
-        } while (cur and eightBits == eightBits && count < 5)
-        if (cur and eightBits == eightBits) {
-            throw Leb128Exception("invalid LEB128 sequence")
+    fun writeUnsigned(buf: ByteBuffer, _value: Long) {
+        var value = _value
+
+        while (true) {
+            var byte = lowBitsOfLong(value)
+            value = value shr 7
+
+            if (value != 0L) {
+                byte = byte or continuationBit
+            }
+
+            buf.put(byte)
+
+            if (value == 0L) {
+                break
+            }
         }
-        return result
     }
 
-    fun writeUnsigned(buf: ByteBuffer, nat: Int) {
-        var value = nat
+    fun sizeUnsigned(_value: Long): Int {
+        var value = _value
+        var size = 0
 
-        var remaining = value shr 7
-        while (remaining != 0) {
-            buf.put((value and sevenBits or eightBits).toByte())
-            value = remaining
-            remaining = remaining shr 7
+        while (true) {
+            value = value shr 7
+
+            size++
+
+            if (value == 0L) {
+                return size
+            }
         }
-        buf.put((value and sevenBits).toByte())
     }
 
-    fun writeSigned(buf: ByteBuffer, int: Int) {
-        var value = int
+    fun writeSigned(buf: ByteBuffer, _value: Long) {
+        var value = _value
 
-        var remaining = value shr 7
-        var hasMore = true
-        val end = if (value and Int.MIN_VALUE == 0) 0 else -1
-        while (hasMore) {
-            hasMore = (remaining != end
-                    || remaining and 1 != value shr 6 and 1)
-            buf.put((value and 0x7f or if (hasMore) 0x80 else 0).toByte())
-            value = remaining
-            remaining = remaining shr 7
+        while (true) {
+            var byte = value.toByte()
+
+            value = value shr 6
+            val done = value == 0L || value == -1L
+            if (done) {
+                byte = byte and continuationBit.unaryMinus().toByte()
+            } else {
+                value = value shr 1
+                byte = byte or continuationBit
+            }
+
+            buf.put(byte)
+
+            if (done) {
+                break
+            }
+        }
+    }
+
+    fun sizeSigned(_value: Long): Int {
+        var value = _value
+        var size = 0
+
+        while (true) {
+            value = value shr 6
+            val done = value == 0L || value == -1L
+            if (!done) {
+                value = value shr 1
+            }
+
+            size++
+
+            if (done) {
+                return size
+            }
         }
     }
 }
 
-class Leb128Exception(m: String) : RuntimeException(m)
-
+const val nineBits = 0xff
+const val eightBits = 0x80
+const val sevenBits = 0x7f
 
 object Leb128BI {
     fun writeNat(buf: ByteBuffer, nat: BigInteger) {

@@ -251,11 +251,11 @@ object EmptyTypeSer : TypeSer {
 
 class CustomTypeSer(val customTypeOpcode: Int) : TypeSer {
     override fun serType(buf: ByteBuffer) {
-        Leb128.writeSigned(buf, customTypeOpcode)
+        Leb128.writeSigned(buf, customTypeOpcode.toLong())
     }
 
     override fun calcTypeSizeBytes(): Int {
-        return Leb128.sizeSigned(customTypeOpcode)
+        return Leb128.sizeSigned(customTypeOpcode.toLong())
     }
 
     override fun poetize(): String {
@@ -311,17 +311,17 @@ object BlobTypeSer : TypeSer {
 class RecordTypeSer(val innerSers: Map<Int, TypeSer>) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.RECORD.value)
-        Leb128.writeUnsigned(buf, innerSers.size)
+        Leb128.writeUnsigned(buf, innerSers.size.toLong())
         innerSers.entries.forEach { (idx, ser) ->
-            Leb128.writeUnsigned(buf, idx)
+            Leb128.writeUnsigned(buf, idx.toLong())
             ser.serType(buf)
         }
     }
 
     override fun calcTypeSizeBytes(): Int {
-        return Leb128.sizeSigned(IDLOpcode.RECORD.value) + Leb128.sizeUnsigned(innerSers.size) +
+        return Leb128.sizeSigned(IDLOpcode.RECORD.value) + Leb128.sizeUnsigned(innerSers.size.toLong()) +
                 innerSers.entries
-                    .map { (idx, ser) -> Leb128.sizeUnsigned(idx) + ser.calcTypeSizeBytes() }
+                    .map { (idx, ser) -> Leb128.sizeUnsigned(idx.toLong()) + ser.calcTypeSizeBytes() }
                     .sum()
     }
 
@@ -336,17 +336,17 @@ class RecordTypeSer(val innerSers: Map<Int, TypeSer>) : TypeSer {
 class VariantTypeSer(val innerSers: Map<Int, TypeSer>) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.VARIANT.value)
-        Leb128.writeUnsigned(buf, innerSers.size)
+        Leb128.writeUnsigned(buf, innerSers.size.toLong())
         innerSers.entries.forEach { (idx, ser) ->
-            Leb128.writeUnsigned(buf, idx)
+            Leb128.writeUnsigned(buf, idx.toLong())
             ser.serType(buf)
         }
     }
 
     override fun calcTypeSizeBytes(): Int {
-        return Leb128.sizeSigned(IDLOpcode.VARIANT.value) + Leb128.sizeUnsigned(innerSers.size) +
+        return Leb128.sizeSigned(IDLOpcode.VARIANT.value) + Leb128.sizeUnsigned(innerSers.size.toLong()) +
                 innerSers.entries
-                    .map { (idx, ser) -> Leb128.sizeUnsigned(idx) + ser.calcTypeSizeBytes() }
+                    .map { (idx, ser) -> Leb128.sizeUnsigned(idx.toLong()) + ser.calcTypeSizeBytes() }
                     .sum()
     }
 
@@ -394,26 +394,26 @@ class FuncTypeSer(
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.FUNC.value)
 
-        Leb128.writeUnsigned(buf, argsSer.size)
+        Leb128.writeUnsigned(buf, argsSer.size.toLong())
         argsSer.forEach { it.serType(buf) }
 
-        Leb128.writeUnsigned(buf, ressSer.size)
+        Leb128.writeUnsigned(buf, ressSer.size.toLong())
         ressSer.forEach { it.serType(buf) }
 
-        Leb128.writeUnsigned(buf, annsSer.size)
+        Leb128.writeUnsigned(buf, annsSer.size.toLong())
         annsSer.forEach { it.serType(buf) }
     }
 
     override fun calcTypeSizeBytes(): Int {
         return Leb128.sizeSigned(IDLOpcode.FUNC.value) +
 
-                Leb128.sizeUnsigned(argsSer.size) +
+                Leb128.sizeUnsigned(argsSer.size.toLong()) +
                 argsSer.map { it.calcTypeSizeBytes() }.sum() +
 
-                Leb128.sizeUnsigned(ressSer.size) +
+                Leb128.sizeUnsigned(ressSer.size.toLong()) +
                 ressSer.map { it.calcTypeSizeBytes() }.sum() +
 
-                Leb128.sizeUnsigned(annsSer.size) +
+                Leb128.sizeUnsigned(annsSer.size.toLong()) +
                 annsSer.map { it.calcTypeSizeBytes() }.sum()
     }
 
@@ -429,10 +429,10 @@ class FuncTypeSer(
 class ServiceTypeSer(val innerSers: Map<String, TypeSer>) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.SERVICE.value)
-        Leb128.writeUnsigned(buf, innerSers.size)
+        Leb128.writeUnsigned(buf, innerSers.size.toLong())
         innerSers.entries.forEach { (key, ser) ->
             val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
-            Leb128.writeUnsigned(buf, keyBytes.size)
+            Leb128.writeUnsigned(buf, keyBytes.size.toLong())
             buf.put(keyBytes)
 
             ser.serType(buf)
@@ -440,12 +440,12 @@ class ServiceTypeSer(val innerSers: Map<String, TypeSer>) : TypeSer {
     }
 
     override fun calcTypeSizeBytes(): Int {
-        return Leb128.sizeSigned(IDLOpcode.SERVICE.value) + Leb128.sizeUnsigned(innerSers.size) +
+        return Leb128.sizeSigned(IDLOpcode.SERVICE.value) + Leb128.sizeUnsigned(innerSers.size.toLong()) +
                 innerSers.entries
                     .map { (key, ser) ->
                         val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
 
-                        Leb128.sizeUnsigned(keyBytes.size) + keyBytes.size + ser.calcTypeSizeBytes()
+                        Leb128.sizeUnsigned(keyBytes.size.toLong()) + keyBytes.size + ser.calcTypeSizeBytes()
                     }
                     .sum()
     }
@@ -576,7 +576,7 @@ object TypeDeser {
 
         val tableSize = Leb128.readUnsigned(buf)
 
-        if (tableSize == 0) return typeTable
+        if (tableSize.toInt() == 0) return typeTable
 
         for (i in 0..tableSize) {
             val type = readIDLType(buf, typeTable)
@@ -589,7 +589,7 @@ object TypeDeser {
     fun readTypes(buf: ByteBuffer, typeTable: TypeTable): List<IDLType> {
         val typesCount = Leb128.readUnsigned(buf)
 
-        if (typesCount == 0) return emptyList()
+        if (typesCount.toInt() == 0) return emptyList()
 
         return (0..typesCount).map { readIDLType(buf, typeTable) }
     }
@@ -637,7 +637,7 @@ object TypeDeser {
                     val id = Leb128.readUnsigned(buf)
                     val type = readIDLType(buf, typeTable)
 
-                    IDLFieldType(null, type, id)
+                    IDLFieldType(null, type, id.toInt())
                 }
 
                 IDLType.Constructive.Record(fields)
@@ -648,7 +648,7 @@ object TypeDeser {
                     val id = Leb128.readUnsigned(buf)
                     val type = readIDLType(buf, typeTable)
 
-                    IDLFieldType(null, type, id)
+                    IDLFieldType(null, type, id.toInt())
                 }
 
                 IDLType.Constructive.Variant(fields)
@@ -677,7 +677,7 @@ object TypeDeser {
                 val methodCount = Leb128.readUnsigned(buf)
                 val methods = (0..methodCount).map {
                     val nameLength = Leb128.readUnsigned(buf)
-                    val nameBytes = ByteArray(nameLength)
+                    val nameBytes = ByteArray(nameLength.toInt())
                     buf.get(nameBytes)
                     val nameStr = nameBytes.toString(StandardCharsets.UTF_8)
                     val type = readIDLType(buf, typeTable)
