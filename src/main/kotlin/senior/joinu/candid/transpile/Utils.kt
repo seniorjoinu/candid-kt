@@ -265,32 +265,54 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
         .initializer("%T.getDecoder().decode(\"$poetizedStaticPayload\")", Base64::class)
     funcBuilder.addProperty(staticPayloadProp.build())
 
+    val invoke = FunSpec.builder("invoke").addModifiers(KModifier.SUSPEND, KModifier.OPERATOR)
+
     // transpilling function return value
-    val returnValueTypeName = context.createResultValueTypeName(funcTypeName.simpleName)
-    val hasResults = type.results.isNotEmpty()
+    val deserBody = when {
+        type.results.size == 1 -> {
+            val res = type.results[0]
+            val (resClassName, resSer) = KtTranspiler.transpileTypeAndValueSer(res.type, context)
 
-    val returnValueBuilder = TypeSpec.classBuilder(returnValueTypeName.simpleName)
-    if (hasResults) returnValueBuilder.addModifiers(KModifier.DATA)
+            invoke.returns(resClassName)
 
-    val returnValueConstructor = FunSpec.constructorBuilder()
-    val deserStatements = mutableListOf<String>()
-    val returnValuesValueSers = type.results.mapIndexed { idx, res ->
-        val (resClassName, resSer) = KtTranspiler.transpileTypeAndValueSer(res.type, context)
+            CodeBlock.of("return·${resSer}.deser(receiveBuf) as %T", resClassName).toString()
+        }
+        type.results.isNotEmpty() -> {
+            val returnValueTypeName = context.createResultValueTypeName(funcTypeName.simpleName)
+            val hasResults = type.results.isNotEmpty()
 
-        val resProp = PropertySpec.builder(idx.toString(), resClassName).initializer(idx.toString())
-        returnValueBuilder.addProperty(resProp.build())
-        returnValueConstructor.addParameter(idx.toString(), resClassName)
+            val returnValueBuilder = TypeSpec.classBuilder(returnValueTypeName.simpleName)
+            if (hasResults) returnValueBuilder.addModifiers(KModifier.DATA)
 
-        deserStatements.add(CodeBlock.of("${resSer}.deser(receiveBuf) as %T", resClassName).toString())
+            val returnValueConstructor = FunSpec.constructorBuilder()
 
-        resSer
+            val deserStatements = mutableListOf<String>()
+            type.results.mapIndexed { idx, res ->
+                val (resClassName, resSer) = KtTranspiler.transpileTypeAndValueSer(res.type, context)
+
+                val resProp = PropertySpec.builder(idx.toString(), resClassName).initializer(idx.toString())
+                returnValueBuilder.addProperty(resProp.build())
+                returnValueConstructor.addParameter(idx.toString(), resClassName)
+
+                deserStatements.add(CodeBlock.of("${resSer}.deser(receiveBuf) as %T", resClassName).toString())
+
+                resSer
+            }
+
+            returnValueBuilder.primaryConstructor(returnValueConstructor.build())
+            context.currentSpec.addType(returnValueBuilder.build())
+
+            invoke.returns(returnValueTypeName)
+
+            deserStatements.joinToString(
+                prefix = "return·${returnValueTypeName.simpleName}(",
+                postfix = ")"
+            )
+        }
+        else -> null
     }
-    returnValueBuilder.primaryConstructor(returnValueConstructor.build())
-    context.currentSpec.addType(returnValueBuilder.build())
 
     // stuffing with actual ser/deser/request/response logic
-    val invoke = FunSpec.builder("invoke").addModifiers(KModifier.SUSPEND, KModifier.OPERATOR)
-        .returns(returnValueTypeName)
 
     val valueSizeBytesStatements = mutableListOf("0")
     val serStatements = mutableListOf<String>()
@@ -331,11 +353,9 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     invoke.addStatement("receiveBuf.rewind()")
     invoke.addStatement("val deserContext = %T.deserUntilM(receiveBuf)", TypeDeser::class)
 
-    val deserBody = deserStatements.joinToString(
-        prefix = "return·${returnValueTypeName.simpleName}(",
-        postfix = ")"
-    )
-    invoke.addStatement(deserBody)
+    if (deserBody != null) {
+        invoke.addStatement(deserBody)
+    }
 
     funcBuilder.addFunction(invoke.build())
     context.currentSpec.addType(funcBuilder.build())

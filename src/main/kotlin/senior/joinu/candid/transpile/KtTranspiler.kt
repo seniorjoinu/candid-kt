@@ -136,16 +136,23 @@ object KtTranspiler {
 
                     Pair(
                         innerType.copy(true),
-                        CodeBlock.of("%T($innerSer)", OptValueSer::class)
+                        CodeBlock.of("%T( $innerSer )", OptValueSer::class)
                     )
                 }
                 is IDLType.Constructive.Vec -> {
-                    val (innerType, innerSer) = transpileTypeAndValueSer(type.type, context)
+                    if (type.type is IDLType.Primitive.Nat8) {
+                        Pair(
+                            ByteArray::class.asTypeName(),
+                            CodeBlock.of("%T", BlobValueSer::class)
+                        )
+                    } else {
+                        val (innerType, innerSer) = transpileTypeAndValueSer(type.type, context)
 
-                    Pair(
-                        List::class.asClassName().parameterizedBy(innerType),
-                        CodeBlock.of("%T($innerSer)", VecValueSer::class)
-                    )
+                        Pair(
+                            List::class.asClassName().parameterizedBy(innerType),
+                            CodeBlock.of("%T( $innerSer )", VecValueSer::class)
+                        )
+                    }
                 }
                 is IDLType.Constructive.Blob -> Pair(
                     ByteArray::class.asClassName(),

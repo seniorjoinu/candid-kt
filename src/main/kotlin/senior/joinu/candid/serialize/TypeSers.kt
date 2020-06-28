@@ -516,7 +516,10 @@ fun getTypeSerForType(type: IDLType, typeTable: TypeTable): TypeSer {
         }
         is IDLType.Constructive.Vec -> {
             val innerSer = getTypeSerForInnerType(type.type, typeTable)
-            VecTypeSer(innerSer)
+            if (innerSer is Nat8TypeSer)
+                BlobTypeSer
+            else
+                VecTypeSer(innerSer)
         }
         is IDLType.Constructive.Blob -> BlobTypeSer
         is IDLType.Constructive.Record -> {

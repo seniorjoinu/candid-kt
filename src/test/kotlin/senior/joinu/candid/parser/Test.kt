@@ -14,14 +14,7 @@ import senior.joinu.candid.EdDSAKeyPair
 import senior.joinu.candid.Null
 import senior.joinu.candid.SimpleIDLFunc
 import senior.joinu.candid.SimpleIDLService
-import senior.joinu.candid.serialize.FuncValueSer
-import senior.joinu.candid.serialize.NullValueSer
-import senior.joinu.candid.serialize.OptValueSer
-import senior.joinu.candid.serialize.ServiceValueSer
-import senior.joinu.candid.serialize.TextValueSer
-import senior.joinu.candid.serialize.TypeDeser
-import senior.joinu.candid.serialize.ValueSer
-import senior.joinu.candid.serialize.VecValueSer
+import senior.joinu.candid.serialize.*
 
 data class AnonIDLType0(
     val `0`: String,
@@ -49,7 +42,7 @@ object AnonIDLType0ValueSer : ValueSer<AnonIDLType0> {
 
 typealias List_2 = AnonIDLType0?
 
-val List_2ValueSer: ValueSer<AnonIDLType0?> = OptValueSer(AnonIDLType0ValueSer)
+val List_2ValueSer: ValueSer<AnonIDLType0?> = OptValueSer( AnonIDLType0ValueSer )
 
 data class AnonIDLType1(
     val `0`: Key,
@@ -77,19 +70,17 @@ object AnonIDLType1ValueSer : ValueSer<AnonIDLType1> {
 
 typealias List = AnonIDLType1?
 
-val ListValueSer: ValueSer<AnonIDLType1?> = OptValueSer(AnonIDLType1ValueSer)
+val ListValueSer: ValueSer<AnonIDLType1?> = OptValueSer( AnonIDLType1ValueSer )
 
 data class Key(
-    val preimage: kotlin.collections.List<Byte>,
-    val image: kotlin.collections.List<Byte>
+    val preimage: ByteArray,
+    val image: ByteArray
 )
 
 object KeyValueSer : ValueSer<Key> {
-    val preimageValueSer: ValueSer<kotlin.collections.List<Byte>> =
-        VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)
+    val preimageValueSer: ValueSer<ByteArray> = BlobValueSer
 
-    val imageValueSer: ValueSer<kotlin.collections.List<Byte>> =
-        VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)
+    val imageValueSer: ValueSer<ByteArray> = BlobValueSer
 
     override fun calcSizeBytes(value: Key): Int =
         this.preimageValueSer.calcSizeBytes(value.preimage) +
@@ -114,15 +105,13 @@ typealias MainActorValueSer = ServiceValueSer
 
 typealias AnonFunc0ValueSer = FuncValueSer
 
-class AnonFunc0Result
-
 class AnonFunc0(
     funcName: String?,
     service: SimpleIDLService?
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAABcQ==")
 
-    suspend operator fun invoke(arg0: String): AnonFunc0Result {
+    suspend operator fun invoke(arg0: String) {
         val arg0ValueSer = senior.joinu.candid.serialize.TextValueSer
         val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0)
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
@@ -139,15 +128,10 @@ class AnonFunc0(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc0Result()
     }
 }
 
 typealias AnonFunc1ValueSer = FuncValueSer
-
-data class AnonFunc1Result(
-    val `0`: kotlin.collections.List<Byte>?
-)
 
 class AnonFunc1(
     funcName: String?,
@@ -155,9 +139,8 @@ class AnonFunc1(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAABbXs=")
 
-    suspend operator fun invoke(arg0: kotlin.collections.List<Byte>): AnonFunc1Result {
-        val arg0ValueSer =
-            senior.joinu.candid.serialize.VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)
+    suspend operator fun invoke(arg0: ByteArray): ByteArray? {
+        val arg0ValueSer = senior.joinu.candid.serialize.BlobValueSer
         val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0)
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
         sendBuf.order(ByteOrder.LITTLE_ENDIAN)
@@ -173,16 +156,12 @@ class AnonFunc1(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc1Result(senior.joinu.candid.serialize.OptValueSer(senior.joinu.candid.serialize.VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)).deser(receiveBuf)
-                as kotlin.collections.List<kotlin.Byte>?)
+        return senior.joinu.candid.serialize.OptValueSer( senior.joinu.candid.serialize.BlobValueSer
+        ).deser(receiveBuf) as kotlin.ByteArray?
     }
 }
 
 typealias AnonFunc2ValueSer = FuncValueSer
-
-data class AnonFunc2Result(
-    val `0`: String?
-)
 
 class AnonFunc2(
     funcName: String?,
@@ -190,7 +169,7 @@ class AnonFunc2(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAABcQ==")
 
-    suspend operator fun invoke(arg0: String): AnonFunc2Result {
+    suspend operator fun invoke(arg0: String): String? {
         val arg0ValueSer = senior.joinu.candid.serialize.TextValueSer
         val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0)
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
@@ -207,16 +186,12 @@ class AnonFunc2(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc2Result(senior.joinu.candid.serialize.OptValueSer(senior.joinu.candid.serialize.TextValueSer).deser(receiveBuf)
-                as kotlin.String?)
+        return senior.joinu.candid.serialize.OptValueSer( senior.joinu.candid.serialize.TextValueSer
+        ).deser(receiveBuf) as kotlin.String?
     }
 }
 
 typealias AnonFunc3ValueSer = FuncValueSer
-
-data class AnonFunc3Result(
-    val `0`: kotlin.collections.List<Byte>?
-)
 
 class AnonFunc3(
     funcName: String?,
@@ -225,9 +200,8 @@ class AnonFunc3(
     val staticPayload: ByteArray =
         Base64.getDecoder().decode("RElETAUBbgJsAgADAQFsAtjA1dAKBNu+pOsLBG17Am17AA==")
 
-    suspend operator fun invoke(arg0: kotlin.collections.List<Byte>, arg1: Bucket): AnonFunc3Result {
-        val arg0ValueSer =
-            senior.joinu.candid.serialize.VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)
+    suspend operator fun invoke(arg0: ByteArray, arg1: Bucket): ByteArray? {
+        val arg0ValueSer = senior.joinu.candid.serialize.BlobValueSer
         val arg1ValueSer = BucketValueSer
         val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0) + arg1ValueSer.calcSizeBytes(arg1)
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
@@ -245,14 +219,12 @@ class AnonFunc3(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc3Result(senior.joinu.candid.serialize.OptValueSer(senior.joinu.candid.serialize.VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)).deser(receiveBuf)
-                as kotlin.collections.List<kotlin.Byte>?)
+        return senior.joinu.candid.serialize.OptValueSer( senior.joinu.candid.serialize.BlobValueSer
+        ).deser(receiveBuf) as kotlin.ByteArray?
     }
 }
 
 typealias AnonFunc4ValueSer = FuncValueSer
-
-class AnonFunc4Result
 
 class AnonFunc4(
     funcName: String?,
@@ -260,7 +232,7 @@ class AnonFunc4(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAA")
 
-    suspend operator fun invoke(): AnonFunc4Result {
+    suspend operator fun invoke() {
         val valueSizeBytes = 0
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
         sendBuf.order(ByteOrder.LITTLE_ENDIAN)
@@ -275,15 +247,10 @@ class AnonFunc4(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc4Result()
     }
 }
 
 typealias AnonFunc5ValueSer = FuncValueSer
-
-data class AnonFunc5Result(
-    val `0`: List_2
-)
 
 class AnonFunc5(
     funcName: String?,
@@ -291,7 +258,7 @@ class AnonFunc5(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAA")
 
-    suspend operator fun invoke(): AnonFunc5Result {
+    suspend operator fun invoke(): List_2 {
         val valueSizeBytes = 0
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
         sendBuf.order(ByteOrder.LITTLE_ENDIAN)
@@ -306,13 +273,11 @@ class AnonFunc5(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc5Result(List_2ValueSer.deser(receiveBuf) as List_2)
+        return List_2ValueSer.deser(receiveBuf) as List_2
     }
 }
 
 typealias AnonFunc6ValueSer = FuncValueSer
-
-class AnonFunc6Result
 
 class AnonFunc6(
     funcName: String?,
@@ -320,7 +285,7 @@ class AnonFunc6(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAA")
 
-    suspend operator fun invoke(): AnonFunc6Result {
+    suspend operator fun invoke() {
         val valueSizeBytes = 0
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
         sendBuf.order(ByteOrder.LITTLE_ENDIAN)
@@ -335,15 +300,10 @@ class AnonFunc6(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc6Result()
     }
 }
 
 typealias AnonFunc7ValueSer = FuncValueSer
-
-data class AnonFunc7Result(
-    val `0`: Boolean
-)
 
 class AnonFunc7(
     funcName: String?,
@@ -351,12 +311,9 @@ class AnonFunc7(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAACbXttew==")
 
-    suspend operator fun invoke(arg0: kotlin.collections.List<Byte>,
-                                arg1: kotlin.collections.List<Byte>): AnonFunc7Result {
-        val arg0ValueSer =
-            senior.joinu.candid.serialize.VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)
-        val arg1ValueSer =
-            senior.joinu.candid.serialize.VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)
+    suspend operator fun invoke(arg0: ByteArray, arg1: ByteArray): Boolean {
+        val arg0ValueSer = senior.joinu.candid.serialize.BlobValueSer
+        val arg1ValueSer = senior.joinu.candid.serialize.BlobValueSer
         val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0) + arg1ValueSer.calcSizeBytes(arg1)
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
         sendBuf.order(ByteOrder.LITTLE_ENDIAN)
@@ -373,16 +330,11 @@ class AnonFunc7(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc7Result(senior.joinu.candid.serialize.BoolValueSer.deser(receiveBuf) as
-                kotlin.Boolean)
+        return senior.joinu.candid.serialize.BoolValueSer.deser(receiveBuf) as kotlin.Boolean
     }
 }
 
 typealias AnonFunc8ValueSer = FuncValueSer
-
-data class AnonFunc8Result(
-    val `0`: Boolean
-)
 
 class AnonFunc8(
     funcName: String?,
@@ -390,7 +342,7 @@ class AnonFunc8(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAACcXE=")
 
-    suspend operator fun invoke(arg0: String, arg1: String): AnonFunc8Result {
+    suspend operator fun invoke(arg0: String, arg1: String): Boolean {
         val arg0ValueSer = senior.joinu.candid.serialize.TextValueSer
         val arg1ValueSer = senior.joinu.candid.serialize.TextValueSer
         val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0) + arg1ValueSer.calcSizeBytes(arg1)
@@ -409,16 +361,11 @@ class AnonFunc8(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc8Result(senior.joinu.candid.serialize.BoolValueSer.deser(receiveBuf) as
-                kotlin.Boolean)
+        return senior.joinu.candid.serialize.BoolValueSer.deser(receiveBuf) as kotlin.Boolean
     }
 }
 
 typealias AnonFunc9ValueSer = FuncValueSer
-
-data class AnonFunc9Result(
-    val `0`: Boolean
-)
 
 class AnonFunc9(
     funcName: String?,
@@ -428,14 +375,12 @@ class AnonFunc9(
         Base64.getDecoder().decode("RElETAUBbgJsAgADAQFsAtjA1dAKBNu+pOsLBG17A217bXsA")
 
     suspend operator fun invoke(
-        arg0: kotlin.collections.List<Byte>,
-        arg1: kotlin.collections.List<Byte>,
+        arg0: ByteArray,
+        arg1: ByteArray,
         arg2: Bucket
-    ): AnonFunc9Result {
-        val arg0ValueSer =
-            senior.joinu.candid.serialize.VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)
-        val arg1ValueSer =
-            senior.joinu.candid.serialize.VecValueSer(senior.joinu.candid.serialize.Nat8ValueSer)
+    ): Boolean {
+        val arg0ValueSer = senior.joinu.candid.serialize.BlobValueSer
+        val arg1ValueSer = senior.joinu.candid.serialize.BlobValueSer
         val arg2ValueSer = BucketValueSer
         val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0) + arg1ValueSer.calcSizeBytes(arg1) +
                 arg2ValueSer.calcSizeBytes(arg2)
@@ -455,16 +400,11 @@ class AnonFunc9(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc9Result(senior.joinu.candid.serialize.BoolValueSer.deser(receiveBuf) as
-                kotlin.Boolean)
+        return senior.joinu.candid.serialize.BoolValueSer.deser(receiveBuf) as kotlin.Boolean
     }
 }
 
 typealias AnonFunc10ValueSer = FuncValueSer
-
-data class AnonFunc10Result(
-    val `0`: BigInteger
-)
 
 class AnonFunc10(
     funcName: String?,
@@ -472,7 +412,7 @@ class AnonFunc10(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAA")
 
-    suspend operator fun invoke(): AnonFunc10Result {
+    suspend operator fun invoke(): BigInteger {
         val valueSizeBytes = 0
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
         sendBuf.order(ByteOrder.LITTLE_ENDIAN)
@@ -487,16 +427,11 @@ class AnonFunc10(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc10Result(senior.joinu.candid.serialize.NatValueSer.deser(receiveBuf) as
-                java.math.BigInteger)
+        return senior.joinu.candid.serialize.NatValueSer.deser(receiveBuf) as java.math.BigInteger
     }
 }
 
 typealias AnonFunc11ValueSer = FuncValueSer
-
-data class AnonFunc11Result(
-    val `0`: String
-)
 
 class AnonFunc11(
     funcName: String?,
@@ -504,7 +439,7 @@ class AnonFunc11(
 ) : SimpleIDLFunc(funcName, service) {
     val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAA")
 
-    suspend operator fun invoke(): AnonFunc11Result {
+    suspend operator fun invoke(): String {
         val valueSizeBytes = 0
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
         sendBuf.order(ByteOrder.LITTLE_ENDIAN)
@@ -519,8 +454,7 @@ class AnonFunc11(
         receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return AnonFunc11Result(senior.joinu.candid.serialize.TextValueSer.deser(receiveBuf) as
-                kotlin.String)
+        return senior.joinu.candid.serialize.TextValueSer.deser(receiveBuf) as kotlin.String
     }
 }
 
@@ -562,7 +496,7 @@ fun main() {
     val actor = MainActor("http://localhost:8000", id, keyPair)
 
     runBlocking {
-        val (resp) = actor.peers()
+        val resp = actor.peers()
 
         println(resp)
     }
