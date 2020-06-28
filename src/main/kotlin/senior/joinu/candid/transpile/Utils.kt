@@ -145,50 +145,87 @@ fun transpileVariant(
 
     type.fields.forEach { field ->
         val variantName = field.name ?: field.idx.toString()
-        val (variantValueType, variantValueSer) = KtTranspiler.transpileTypeAndValueSer(field.type, context)
         val variantClassName = ClassName(context.packageName, variantName)
 
-        val constructor = FunSpec.constructorBuilder()
-        val variantBuilder = TypeSpec.classBuilder(variantName)
-            .addModifiers(KModifier.DATA)
-            .superclass(variantSuperName)
+        val variantBuilder = if (field.type is IDLType.Primitive.Null) {
+            val variantBuilder = TypeSpec.objectBuilder(variantName)
+                .superclass(variantSuperName)
 
-        val variantValueProp = PropertySpec.builder("value", variantValueType)
-            .initializer("value")
+            calcSizeBytesFuncStatements.add(
+                CodeBlock.of(
+                    "is %T.%T -> %T.sizeUnsigned(${field.idx})",
+                    variantSuperName, variantClassName, Leb128::class
+                ).toString()
+            )
 
-        constructor.addParameter("value", variantValueType)
-        variantBuilder.addProperty(variantValueProp.build())
-        variantBuilder.primaryConstructor(constructor.build())
-
-        variantSuperBuilder.addType(variantBuilder.build())
-
-        calcSizeBytesFuncStatements.add(
-            CodeBlock.of(
-                "is %T.%T -> %T.sizeUnsigned(${field.idx}).toInt() + ${variantValueSer}.calcSizeBytes(value.value).toInt()",
-                variantSuperName, variantClassName, Leb128::class
-            ).toString()
-        )
-
-        serFuncStatements.add(
-            CodeBlock.of(
-                """
+            serFuncStatements.add(
+                CodeBlock.of(
+                    """
                     is %T.%T -> {
-                        %T.writeUnsigned(buf, ${field.idx}.toLong())
+                        %T.writeUnsigned(buf, ${field.idx})
+                    }
+                """.trimIndent(),
+                    variantSuperName, variantClassName, Leb128::class
+                ).toString()
+            )
+
+            deserFuncStatements.add(
+                CodeBlock.of(
+                    """
+                    ${field.idx} -> %T.%T
+                """.trimIndent(),
+                    variantSuperName, variantClassName
+                ).toString()
+            )
+
+            variantBuilder
+        } else {
+            val (variantValueType, variantValueSer) = KtTranspiler.transpileTypeAndValueSer(field.type, context)
+
+            val constructor = FunSpec.constructorBuilder()
+            val variantBuilder = TypeSpec.classBuilder(variantName)
+                .addModifiers(KModifier.DATA)
+                .superclass(variantSuperName)
+
+            val variantValueProp = PropertySpec.builder("value", variantValueType)
+                .initializer("value")
+
+            constructor.addParameter("value", variantValueType)
+            variantBuilder.addProperty(variantValueProp.build())
+            variantBuilder.primaryConstructor(constructor.build())
+
+            calcSizeBytesFuncStatements.add(
+                CodeBlock.of(
+                    "is %T.%T -> %T.sizeUnsigned(${field.idx}) + ${variantValueSer}.calcSizeBytes(value.value)",
+                    variantSuperName, variantClassName, Leb128::class
+                ).toString()
+            )
+
+            serFuncStatements.add(
+                CodeBlock.of(
+                    """
+                    is %T.%T -> {
+                        %T.writeUnsigned(buf, ${field.idx})
                         ${variantValueSer}.ser(buf, value.value)
                     }
                 """.trimIndent(),
-                variantSuperName, variantClassName, Leb128::class
-            ).toString()
-        )
+                    variantSuperName, variantClassName, Leb128::class
+                ).toString()
+            )
 
-        deserFuncStatements.add(
-            CodeBlock.of(
-                """
+            deserFuncStatements.add(
+                CodeBlock.of(
+                    """
                     ${field.idx} -> %T.%T(${variantValueSer}.deser(buf))
                 """.trimIndent(),
-                variantSuperName, variantClassName
-            ).toString()
-        )
+                    variantSuperName, variantClassName
+                ).toString()
+            )
+
+            variantBuilder
+        }
+
+        variantSuperBuilder.addType(variantBuilder.build())
     }
 
     val calcSizeBytesFuncBody = calcSizeBytesFuncStatements.joinToString("\n", "return when (value) {\n", "\n}")

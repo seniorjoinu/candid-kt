@@ -66,7 +66,34 @@ class GrammarTest {
             }
         """.trimIndent()
 
-        val program = IDLGrammar.parseToEnd(testCandid2)
+        val testCandid3 = """
+            type Version_3 = variant {"Version": nat;};
+            type Version_2 = Version_3;
+            type Version = Version_2;
+            type Mode_3 = 
+             variant {
+               "Alphanumeric": null;
+               "EightBit": null;
+               "Kanji": null;
+               "Numeric": null;
+             };
+            type Mode_2 = Mode_3;
+            type Mode = Mode_2;
+            type ErrorCorrection_3 = 
+             variant {
+               "H": null;
+               "L": null;
+               "M": null;
+               "Q": null;
+             };
+            type ErrorCorrection_2 = ErrorCorrection_3;
+            type ErrorCorrection = ErrorCorrection_2;
+            service : {
+              "encode": (Version, ErrorCorrection, Mode, text) -> (text);
+            }
+        """.trimIndent()
+
+        val program = IDLGrammar.parseToEnd(testCandid3)
         val ktContext = KtTranspiler.transpile(program, "", "Test.kt")
 
         val fileSpec = ktContext.currentSpec.build()
