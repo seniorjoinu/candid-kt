@@ -29,6 +29,10 @@ class TypeTable(
             .sum()
     }
 
+    fun exists(custom: IDLType.Other.Custom): Boolean {
+        return registry.size > custom.opcode
+    }
+
     fun poetize(): String {
         val poetizedRegistry = registry.joinToString { it.poetize() }
         val poetizedLabels = labels.entries.joinToString { (key, value) -> "${key.poetize()} to $value" }
@@ -90,7 +94,7 @@ class TypeTable(
 
     fun registerIfNotPrimitiveOrId(type: IDLType) {
         when (type) {
-            is IDLType.Id, is IDLType.Primitive -> {
+            is IDLType.Id, is IDLType.Primitive, is IDLType.Other -> {
             }
             else -> registerType(type)
         }

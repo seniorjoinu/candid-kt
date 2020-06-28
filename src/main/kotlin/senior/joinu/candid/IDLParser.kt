@@ -4,6 +4,8 @@ import com.github.h0tk3y.betterParse.combinators.*
 import com.github.h0tk3y.betterParse.grammar.Grammar
 import com.github.h0tk3y.betterParse.grammar.parser
 import com.github.h0tk3y.betterParse.parser.Parser
+import senior.joinu.candid.IDLGrammar.getValue
+import senior.joinu.candid.IDLGrammar.provideDelegate
 import java.util.regex.Pattern
 
 
@@ -170,15 +172,17 @@ object IDLGrammar : Grammar<IDLProgram>() {
             )
         }
     }
-    private val pShortStrNameFieldType: Parser<IDLFieldType> by parser { pName } use {
-        IDLFieldType(
-            value,
-            IDLType.Primitive.Null,
-            idlHash(value)
-        )
-    }
     private val pShortRecordFieldType: Parser<IDLFieldType> by parser { pDataType } use {
         IDLFieldType(null, this, -1)
+    }
+    private val pShortStrNameFieldType: Parser<IDLFieldType> by parser { pName } use {
+        val id = IDLType.Id(value)
+
+        if (ids.contains(id)) {
+            IDLFieldType(null, id, -1)
+        } else {
+            IDLFieldType(value, IDLType.Primitive.Null, idlHash(value))
+        }
     }
     private val pFieldType: Parser<IDLFieldType> by pNatNameFieldType or pStrNameFieldType or pShortNatNameFieldType or pShortStrNameFieldType or pShortRecordFieldType
 
@@ -263,8 +267,11 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pName: Parser<IDLToken.Name> by parser { pId } or parser { pTextVal } use {
         IDLToken.Name(value)
     }
+    private val ids = mutableSetOf<IDLType.Id>()
     private val pId: Parser<IDLType.Id> by tId use {
-        IDLType.Id(text)
+        val id = IDLType.Id(text)
+        ids.add(id)
+        id
     }
     private val pTextVal: Parser<IDLToken.TextVal> by tUtfScalar use {
         IDLToken.TextVal(text.substring(1, text.length - 1))

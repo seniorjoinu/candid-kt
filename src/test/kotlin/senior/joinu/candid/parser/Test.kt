@@ -25,24 +25,24 @@ import senior.joinu.candid.serialize.VecValueSer
 
 data class AnonIDLType0(
     val `0`: String,
-    val List_2: Null
+    val `1`: List_2
 )
 
 object AnonIDLType0ValueSer : ValueSer<AnonIDLType0> {
     val `0ValueSer`: ValueSer<String> = TextValueSer
 
-    val List_2ValueSer: ValueSer<Null> = NullValueSer
+    val `1ValueSer`: ValueSer<List_2> = List_2ValueSer
 
     override fun calcSizeBytes(value: AnonIDLType0): Int = this.`0ValueSer`.calcSizeBytes(value.`0`) +
-            this.List_2ValueSer.calcSizeBytes(value.List_2)
+            this.`1ValueSer`.calcSizeBytes(value.`1`)
 
     override fun ser(buf: ByteBuffer, value: AnonIDLType0) {
         this.`0ValueSer`.ser(buf, value.`0`)
-        this.List_2ValueSer.ser(buf, value.List_2)
+        this.`1ValueSer`.ser(buf, value.`1`)
     }
 
     override fun deser(buf: ByteBuffer): AnonIDLType0 = AnonIDLType0(this.`0ValueSer`.deser(buf),
-        this.List_2ValueSer.deser(buf))
+        this.`1ValueSer`.deser(buf))
 
     override fun poetize(): String = CodeBlock.of("%T", AnonIDLType0ValueSer::class).toString()
 }
@@ -52,25 +52,25 @@ typealias List_2 = AnonIDLType0?
 val List_2ValueSer: ValueSer<AnonIDLType0?> = OptValueSer(AnonIDLType0ValueSer)
 
 data class AnonIDLType1(
-    val Key: Null,
-    val List: Null
+    val `0`: Key,
+    val `1`: List
 )
 
 object AnonIDLType1ValueSer : ValueSer<AnonIDLType1> {
-    val KeyValueSer: ValueSer<Null> = NullValueSer
+    val `0ValueSer`: ValueSer<Key> = KeyValueSer
 
-    val ListValueSer: ValueSer<Null> = NullValueSer
+    val `1ValueSer`: ValueSer<List> = ListValueSer
 
-    override fun calcSizeBytes(value: AnonIDLType1): Int = this.KeyValueSer.calcSizeBytes(value.Key) +
-            this.ListValueSer.calcSizeBytes(value.List)
+    override fun calcSizeBytes(value: AnonIDLType1): Int = this.`0ValueSer`.calcSizeBytes(value.`0`) +
+            this.`1ValueSer`.calcSizeBytes(value.`1`)
 
     override fun ser(buf: ByteBuffer, value: AnonIDLType1) {
-        this.KeyValueSer.ser(buf, value.Key)
-        this.ListValueSer.ser(buf, value.List)
+        this.`0ValueSer`.ser(buf, value.`0`)
+        this.`1ValueSer`.ser(buf, value.`1`)
     }
 
-    override fun deser(buf: ByteBuffer): AnonIDLType1 = AnonIDLType1(this.KeyValueSer.deser(buf),
-        this.ListValueSer.deser(buf))
+    override fun deser(buf: ByteBuffer): AnonIDLType1 = AnonIDLType1(this.`0ValueSer`.deser(buf),
+        this.`1ValueSer`.deser(buf))
 
     override fun poetize(): String = CodeBlock.of("%T", AnonIDLType1ValueSer::class).toString()
 }
@@ -222,7 +222,8 @@ class AnonFunc3(
     funcName: String?,
     service: SimpleIDLService?
 ) : SimpleIDLFunc(funcName, service) {
-    val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAMBbgJsAv+C5QF//pCxlAN/Am17AA==")
+    val staticPayload: ByteArray =
+        Base64.getDecoder().decode("RElETAUBbgJsAgADAQFsAtjA1dAKBNu+pOsLBG17Am17AA==")
 
     suspend operator fun invoke(arg0: kotlin.collections.List<Byte>, arg1: Bucket): AnonFunc3Result {
         val arg0ValueSer =
@@ -423,7 +424,8 @@ class AnonFunc9(
     funcName: String?,
     service: SimpleIDLService?
 ) : SimpleIDLFunc(funcName, service) {
-    val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAMBbgJsAv+C5QF//pCxlAN/A217bXsA")
+    val staticPayload: ByteArray =
+        Base64.getDecoder().decode("RElETAUBbgJsAgADAQFsAtjA1dAKBNu+pOsLBG17A217bXsA")
 
     suspend operator fun invoke(
         arg0: kotlin.collections.List<Byte>,
@@ -554,13 +556,13 @@ class MainActor(
 }
 
 fun main() {
-    val id = CanisterId.fromCanonical("ic:8531302FD00780A2B6")
+    val id = CanisterId.fromCanonical("ic:BFA73B5586EFB42FA3")
     val keyPair = EdDSAKeyPair.generateInsecure()
 
     val actor = MainActor("http://localhost:8000", id, keyPair)
 
     runBlocking {
-        val (resp) = actor.whoami()
+        val (resp) = actor.peers()
 
         println(resp)
     }

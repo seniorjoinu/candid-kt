@@ -553,7 +553,17 @@ fun getTypeSerForType(type: IDLType, typeTable: TypeTable): TypeSer {
 data class DeserializationContext(
     val typeTable: TypeTable = TypeTable(),
     val types: List<IDLType> = listOf()
-)
+) {
+    init {
+        for (type in types) {
+            if (type is IDLType.Other.Custom) {
+                require(typeTable.exists(type)) { "Unknown type met during type definition table deserialization" }
+            } else if (type is IDLType.Other.Future) {
+                TODO("Future types are not supported yet")
+            }
+        }
+    }
+}
 
 object TypeDeser {
     fun deserUntilM(buf: ByteBuffer): DeserializationContext {
@@ -629,7 +639,7 @@ object TypeDeser {
             }
             IDLOpcode.RECORD.value -> {
                 val fieldCount = Leb128.readUnsigned(buf)
-                val fields = (0..fieldCount).map {
+                val fields = (0 until fieldCount).map {
                     val id = Leb128.readUnsigned(buf)
                     val type = readIDLType(buf, typeTable)
 
@@ -640,7 +650,7 @@ object TypeDeser {
             }
             IDLOpcode.VARIANT.value -> {
                 val fieldCount = Leb128.readUnsigned(buf)
-                val fields = (0..fieldCount).map {
+                val fields = (0 until fieldCount).map {
                     val id = Leb128.readUnsigned(buf)
                     val type = readIDLType(buf, typeTable)
 
@@ -652,13 +662,13 @@ object TypeDeser {
 
             IDLOpcode.FUNC.value -> {
                 val argumentCount = Leb128.readUnsigned(buf)
-                val arguments = (0..argumentCount).map { IDLArgType(null, readIDLType(buf, typeTable)) }
+                val arguments = (0 until argumentCount).map { IDLArgType(null, readIDLType(buf, typeTable)) }
 
                 val resultsCount = Leb128.readUnsigned(buf).toInt()
-                val results = (0..resultsCount).map { IDLArgType(null, readIDLType(buf, typeTable)) }
+                val results = (0 until resultsCount).map { IDLArgType(null, readIDLType(buf, typeTable)) }
 
                 val annotationsCount = Leb128.readUnsigned(buf).toInt()
-                val annotations = (0..annotationsCount).map {
+                val annotations = (0 until annotationsCount).map {
                     val byte = buf.get()
                     when (byte.toInt()) {
                         1 -> IDLFuncAnn.Query
@@ -671,7 +681,7 @@ object TypeDeser {
             }
             IDLOpcode.SERVICE.value -> {
                 val methodCount = Leb128.readUnsigned(buf)
-                val methods = (0..methodCount).map {
+                val methods = (0 until methodCount).map {
                     val nameLength = Leb128.readUnsigned(buf)
                     val nameBytes = ByteArray(nameLength)
                     buf.get(nameBytes)
@@ -686,15 +696,10 @@ object TypeDeser {
                 IDLType.Reference.Service(methods)
             }
             IDLOpcode.PRINCIPAL.value -> IDLType.Reference.Principal
-            else -> {
-                if (opcode > 0) {
-                    check(typeTable.registry.size > opcode) { "Unknown type met during deserialization!" }
-                    IDLType.Other.Custom(opcode)
-                } else {
-                    IDLType.Other.Future(opcode)
-                    throw RuntimeException("Future type met during deserialization (not supported yet)")
-                }
-            }
+            else -> if (opcode >= 0)
+                IDLType.Other.Custom(opcode)
+            else
+                IDLType.Other.Future(opcode)
         }
     }
 }

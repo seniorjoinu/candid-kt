@@ -221,14 +221,6 @@ fun transpileVariant(
     return Pair(variantSuperName, CodeBlock.of("%T", variantSuperValueSerName))
 }
 
-fun deserUntilM(buf: ByteBuffer): TypeTable {
-    TODO()
-}
-
-suspend fun receive(): ByteBuffer {
-    TODO()
-}
-
 fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: TranspileContext): ClassName {
     val funcTypeName = name ?: context.nextAnonymousFuncTypeName()
 

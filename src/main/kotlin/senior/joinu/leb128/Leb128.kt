@@ -11,32 +11,31 @@ import kotlin.experimental.or
 
 
 object Leb128 {
-    fun sizeUnsigned(value: Int): Int {
-        // TODO: This could be much cleverer.
-        var remaining = value shr 7
-        var count = 0
-        while (remaining != 0) {
-            remaining = remaining shr 7
-            count++
-        }
-        return count + 1
-    }
-
     fun sizeSigned(value: Int): Int {
-        // TODO: This could be much cleverer.
+        var size = 0
         var value = value
         var remaining = value shr 7
-        var count = 0
         var hasMore = true
         val end = if (value and Int.MIN_VALUE == 0) 0 else -1
         while (hasMore) {
             hasMore = (remaining != end
                     || remaining and 1 != value shr 6 and 1)
+            size++
             value = remaining
             remaining = remaining shr 7
-            count++
         }
-        return count
+
+        return size
+    }
+
+    fun sizeUnsigned(value: Int): Int {
+        var size = 0
+        var remaining = value ushr 7
+        while (remaining != 0) {
+            size++
+            remaining = remaining ushr 7
+        }
+        return ++size
     }
 
     fun readSigned(buf: ByteBuffer): Int {
