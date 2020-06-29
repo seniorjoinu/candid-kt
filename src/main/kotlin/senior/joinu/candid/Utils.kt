@@ -1,19 +1,19 @@
 package senior.joinu.candid
 
 import java.math.BigInteger
+import java.nio.charset.StandardCharsets
 import java.util.*
 
 
-val twoPowThirtyTwo: BigInteger = BigInteger.valueOf(2).pow(32)
-
 fun idlHash(id: String): Int {
-    val result = id.foldIndexed(BigInteger.ZERO) { idx, acc, char ->
-        acc + char.toLong().toBigInteger() * BigInteger.valueOf(223).pow((id.length - 1) - idx)
+    val bytes = id.toByteArray(StandardCharsets.UTF_8)
+    var hash = 0L
+    for (byte in bytes) {
+        hash = (hash * 223 + byte) % BigInteger.TWO.pow(32).longValueExact()
     }
 
-    return result.mod(twoPowThirtyTwo).toInt()
+    return hash.toInt()
 }
-
 
 fun BigInteger.reverseOrder() = BigInteger(this.toBytesLE())
 

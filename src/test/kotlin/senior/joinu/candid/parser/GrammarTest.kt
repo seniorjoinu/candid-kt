@@ -93,7 +93,20 @@ class GrammarTest {
             }
         """.trimIndent()
 
-        val program = IDLGrammar.parseToEnd(testCandid3)
+        val testCandid4 = """
+            type Message = 
+             record {
+               "message": text;
+               "sender": text;
+             };
+            type Chat = vec Message;
+            service : {
+              "addMessageAndReturnChat": (Message) -> (Chat);
+              "returnChat": () -> (Chat) query;
+            }
+        """.trimIndent()
+
+        val program = IDLGrammar.parseToEnd(testCandid4)
         val ktContext = KtTranspiler.transpile(program, "", "Test.kt")
 
         val fileSpec = ktContext.currentSpec.build()

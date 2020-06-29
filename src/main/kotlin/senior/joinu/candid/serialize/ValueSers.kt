@@ -375,7 +375,7 @@ class VecValueSer<T>(val innerSer: ValueSer<T>) : ValueSer<List<T>> {
 
     override fun deser(buf: ByteBuffer): List<T> {
         val size = Leb128.readUnsigned(buf)
-        return (0..size).map { innerSer.deser(buf) }
+        return (0 until size).map { innerSer.deser(buf) }
     }
 
     override fun poetize(): String {
