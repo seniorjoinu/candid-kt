@@ -9,7 +9,7 @@ fun idlHash(id: String): Int {
     val bytes = id.toByteArray(StandardCharsets.UTF_8)
     var hash = 0L
     for (byte in bytes) {
-        hash = (hash * 223 + byte) % BigInteger.TWO.pow(32).longValueExact()
+        hash = (hash * 223 + byte) % BigInteger("2").pow(32).longValueExact()
     }
 
     return hash.toInt()
