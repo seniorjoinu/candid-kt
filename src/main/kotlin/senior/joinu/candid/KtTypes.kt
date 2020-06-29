@@ -147,7 +147,10 @@ data class CanisterId(val data: ByteArray) {
             check(id.substring(0 until 3).toLowerCase() == "ic:") { "'ic' prefix not found" }
             val idHex = id.substring(3 until id.length-2)
             val actualCRCHex = id.substring(id.length-2 until id.length)
-            val expectedCRCHex = CRC8.calc(idHex.hexStringToByteArray()).toString(16)
+            var expectedCRCHex = CRC8.calc(idHex.hexStringToByteArray()).toString(16)
+            if (expectedCRCHex.length == 1)
+                expectedCRCHex = "0$expectedCRCHex"
+
             check(actualCRCHex.toLowerCase() == expectedCRCHex.toLowerCase()) { "CRC doesn't match" }
 
             return CanisterId(idHex.hexStringToByteArray())

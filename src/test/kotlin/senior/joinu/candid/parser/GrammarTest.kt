@@ -94,6 +94,16 @@ class GrammarTest {
         """.trimIndent()
 
         val testCandid4 = """
+            type Value = 
+             record {
+               "i": int;
+               "n": nat;
+             };
+            type Sign = 
+             variant {
+               "Minus": null;
+               "Plus": null;
+             };
             type Message = 
              record {
                "message": text;
@@ -102,6 +112,7 @@ class GrammarTest {
             type Chat = vec Message;
             service : {
               "addMessageAndReturnChat": (Message) -> (Chat);
+              "getValue": (Sign) -> (Value) query;
               "returnChat": () -> (Chat) query;
             }
         """.trimIndent()

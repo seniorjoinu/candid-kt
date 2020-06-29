@@ -109,7 +109,7 @@ object Leb128BI {
 
         while (true) {
             val bigByte = value and BigInteger.valueOf(0x7f)
-            var byte = bigByte.toUBytesLE().first()
+            var byte = bigByte.toByte()
 
             value = value shr 7
 
@@ -150,12 +150,12 @@ object Leb128BI {
             var byte = buf.get()
             byte = byte and 0x7f.toByte()
 
-            val lowBits = BigInteger(1, ByteArray(1) { byte })
+            val lowBits = BigInteger(byteArrayOf(byte))
 
             result = result or (lowBits shl shift)
 
             if (byte and 0x80.toByte() == 0.toByte()) {
-                return result.reverseOrder()
+                return result
             }
 
             shift += 7
@@ -167,7 +167,7 @@ object Leb128BI {
 
         while (true) {
             val bigByte = int and BigInteger.valueOf(0xff)
-            var byte = bigByte.toBytesLE().first()
+            var byte = bigByte.toByte()
 
             value = value shr 6
 
@@ -215,7 +215,7 @@ object Leb128BI {
             byte = buf.get()
             byte = byte and 0x7f.toByte()
 
-            val lowBits = BigInteger(ByteArray(1) { byte })
+            val lowBits = BigInteger(byteArrayOf(byte))
 
             result = result or (lowBits shl shift)
             shift += 7
@@ -225,10 +225,10 @@ object Leb128BI {
             }
         }
 
-        if (shift % 8 != 0 && ((0x40).toByte() and byte) == (0x40).toByte()) {
-            result = result or BigInteger.valueOf(-1) shl shift
+        if (0x40.toByte() and byte == 0x40.toByte()) {
+            result = result or (BigInteger.valueOf(-1) shl shift)
         }
 
-        return result.reverseOrder()
+        return result
     }
 }

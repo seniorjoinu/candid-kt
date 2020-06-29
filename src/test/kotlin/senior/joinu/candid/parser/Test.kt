@@ -17,6 +17,65 @@ import senior.joinu.candid.SimpleIDLService
 import senior.joinu.candid.serialize.*
 import senior.joinu.leb128.Leb128
 
+data class Value(
+    val i: BigInteger,
+    val n: BigInteger
+)
+
+object ValueValueSer : ValueSer<Value> {
+    val iValueSer: ValueSer<BigInteger> = IntValueSer
+
+    val nValueSer: ValueSer<BigInteger> = NatValueSer
+
+    override fun calcSizeBytes(value: Value): Int = this.iValueSer.calcSizeBytes(value.i) +
+            this.nValueSer.calcSizeBytes(value.n)
+
+    override fun ser(buf: ByteBuffer, value: Value) {
+        this.iValueSer.ser(buf, value.i)
+        this.nValueSer.ser(buf, value.n)
+    }
+
+    override fun deser(buf: ByteBuffer): Value = Value(this.iValueSer.deser(buf),
+        this.nValueSer.deser(buf))
+
+    override fun poetize(): String = CodeBlock.of("%T", ValueValueSer::class).toString()
+}
+
+sealed class Sign {
+    object Plus : Sign()
+
+    object Minus : Sign()
+}
+
+object SignValueSer : ValueSer<Sign> {
+    override fun calcSizeBytes(value: Sign): Int = when (value) {
+        is Sign.Plus -> senior.joinu.leb128.Leb128.sizeUnsigned(0)
+        is Sign.Minus -> senior.joinu.leb128.Leb128.sizeUnsigned(1)
+    }
+
+    override fun ser(buf: ByteBuffer, value: Sign) {
+        when (value) {
+            is Sign.Plus -> {
+                senior.joinu.leb128.Leb128.writeUnsigned(buf, 0)
+            }
+            is Sign.Minus -> {
+                senior.joinu.leb128.Leb128.writeUnsigned(buf, 1)
+            }
+        }
+    }
+
+    override fun deser(buf: ByteBuffer): Sign {
+        val idx = Leb128.readUnsigned(buf)
+        return when (idx) {
+            0 -> Sign.Plus
+            1 -> Sign.Minus
+            else -> throw java.lang.RuntimeException("Unknown idx met during variant deserialization")
+        }
+    }
+
+    override fun poetize(): String = CodeBlock.of("%T", SignValueSer::class).toString()
+}
+
 data class Message(
     val sender: String,
     val message: String
@@ -54,8 +113,6 @@ class AnonFunc0(
     funcName: String?,
     service: SimpleIDLService?
 ) : SimpleIDLFunc(funcName, service) {
-    val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAFsArWPk9wGccfrxNAJcQEA")
-
     suspend operator fun invoke(arg0: Message): Chat {
         val arg0ValueSer = MessageValueSer
         val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0)
@@ -75,6 +132,10 @@ class AnonFunc0(
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
         return ChatValueSer.deser(receiveBuf) as Chat
     }
+
+    companion object {
+        val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAFsArWPk9wGccfrxNAJcQEA")
+    }
 }
 
 typealias AnonFunc1ValueSer = FuncValueSer
@@ -83,8 +144,37 @@ class AnonFunc1(
     funcName: String?,
     service: SimpleIDLService?
 ) : SimpleIDLFunc(funcName, service) {
-    val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAA")
+    suspend operator fun invoke(arg0: Sign): Value {
+        val arg0ValueSer = SignValueSer
+        val valueSizeBytes = 0 + arg0ValueSer.calcSizeBytes(arg0)
+        val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
+        sendBuf.order(ByteOrder.LITTLE_ENDIAN)
+        sendBuf.put(staticPayload)
+        arg0ValueSer.ser(sendBuf, arg0)
+        val sendBytes = ByteArray(staticPayload.size + valueSizeBytes)
+        sendBuf.rewind()
+        sendBuf.get(sendBytes)
 
+        val receiveBytes = this.service!!.query(this.funcName!!, sendBytes)
+        val receiveBuf = ByteBuffer.allocate(receiveBytes.size)
+        receiveBuf.order(ByteOrder.LITTLE_ENDIAN)
+        receiveBuf.put(receiveBytes)
+        receiveBuf.rewind()
+        val deserContext = TypeDeser.deserUntilM(receiveBuf)
+        return ValueValueSer.deser(receiveBuf) as Value
+    }
+
+    companion object {
+        val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAFrAvrWzakDf9Dg19wJfwEA")
+    }
+}
+
+typealias AnonFunc2ValueSer = FuncValueSer
+
+class AnonFunc2(
+    funcName: String?,
+    service: SimpleIDLService?
+) : SimpleIDLFunc(funcName, service) {
     suspend operator fun invoke(): Chat {
         val valueSizeBytes = 0
         val sendBuf = ByteBuffer.allocate(staticPayload.size + valueSizeBytes)
@@ -102,6 +192,10 @@ class AnonFunc1(
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
         return ChatValueSer.deser(receiveBuf) as Chat
     }
+
+    companion object {
+        val staticPayload: ByteArray = Base64.getDecoder().decode("RElETAAA")
+    }
 }
 
 class MainActor(
@@ -112,11 +206,13 @@ class MainActor(
 ) : SimpleIDLService(host, id, keyPair, apiVersion) {
     val addMessageAndReturnChat: AnonFunc0 = AnonFunc0("addMessageAndReturnChat", this)
 
-    val returnChat: AnonFunc1 = AnonFunc1("returnChat", this)
+    val getValue: AnonFunc1 = AnonFunc1("getValue", this)
+
+    val returnChat: AnonFunc2 = AnonFunc2("returnChat", this)
 }
 
 fun main() {
-    val id = CanisterId.fromCanonical("ic:859EEAD289A52D15B9")
+    val id = CanisterId.fromCanonical("ic:9F74DCB2E416E3710E")
     val keyPair = EdDSAKeyPair.generateInsecure()
 
     val actor = MainActor("http://localhost:8000", id, keyPair)
@@ -124,10 +220,11 @@ fun main() {
     runBlocking {
         val message = Message("Hello, chat!", "Sasha Vtyurin")
         val chat = actor.addMessageAndReturnChat(message)
-
         val chat1 = actor.returnChat()
-
         println(chat)
         println(chat1)
+
+        val value = actor.getValue(Sign.Plus)
+        println(value)
     }
 }

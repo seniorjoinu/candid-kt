@@ -140,10 +140,10 @@ fun transpileVariant(
         .addModifiers(KModifier.OVERRIDE)
         .addParameter("buf", ByteBuffer::class)
         .returns(variantSuperName)
-        .addStatement("val idx = %T.readUnsigned(buf).toInt()", Leb128::class)
+        .addStatement("val idx = %T.readUnsigned(buf)", Leb128::class)
     val deserFuncStatements = mutableListOf<String>()
 
-    type.fields.forEach { field ->
+    type.fields.forEachIndexed { idx, field ->
         val variantName = field.name ?: field.idx.toString()
         val variantClassName = ClassName(context.packageName, variantName)
 
@@ -153,7 +153,7 @@ fun transpileVariant(
 
             calcSizeBytesFuncStatements.add(
                 CodeBlock.of(
-                    "is %T.%T -> %T.sizeUnsigned(${field.idx})",
+                    "is %T.%T -> %T.sizeUnsigned($idx)",
                     variantSuperName, variantClassName, Leb128::class
                 ).toString()
             )
@@ -162,7 +162,7 @@ fun transpileVariant(
                 CodeBlock.of(
                     """
                     is %T.%T -> {
-                        %T.writeUnsigned(buf, ${field.idx})
+                        %T.writeUnsigned(buf, $idx)
                     }
                 """.trimIndent(),
                     variantSuperName, variantClassName, Leb128::class
@@ -172,7 +172,7 @@ fun transpileVariant(
             deserFuncStatements.add(
                 CodeBlock.of(
                     """
-                    ${field.idx} -> %T.%T
+                    $idx -> %T.%T
                 """.trimIndent(),
                     variantSuperName, variantClassName
                 ).toString()
@@ -196,7 +196,7 @@ fun transpileVariant(
 
             calcSizeBytesFuncStatements.add(
                 CodeBlock.of(
-                    "is %T.%T -> %T.sizeUnsigned(${field.idx}) + ${variantValueSer}.calcSizeBytes(value.value)",
+                    "is %T.%T -> %T.sizeUnsigned($idx) + ${variantValueSer}.calcSizeBytes(value.value)",
                     variantSuperName, variantClassName, Leb128::class
                 ).toString()
             )
@@ -205,7 +205,7 @@ fun transpileVariant(
                 CodeBlock.of(
                     """
                     is %T.%T -> {
-                        %T.writeUnsigned(buf, ${field.idx})
+                        %T.writeUnsigned(buf, $idx)
                         ${variantValueSer}.ser(buf, value.value)
                     }
                 """.trimIndent(),
@@ -216,7 +216,7 @@ fun transpileVariant(
             deserFuncStatements.add(
                 CodeBlock.of(
                     """
-                    ${field.idx} -> %T.%T(${variantValueSer}.deser(buf))
+                    $idx -> %T.%T(${variantValueSer}.deser(buf))
                 """.trimIndent(),
                     variantSuperName, variantClassName
                 ).toString()
@@ -298,9 +298,11 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     val poetizedStaticPayload = staticPayload.poetize()
 
     // "baking" all these bytes into the class
+    val companionBuilder = TypeSpec.companionObjectBuilder()
     val staticPayloadProp = PropertySpec.builder("staticPayload", ByteArray::class)
         .initializer("%T.getDecoder().decode(\"$poetizedStaticPayload\")", Base64::class)
-    funcBuilder.addProperty(staticPayloadProp.build())
+    companionBuilder.addProperty(staticPayloadProp.build())
+    funcBuilder.addType(companionBuilder.build())
 
     val invoke = FunSpec.builder("invoke").addModifiers(KModifier.SUSPEND, KModifier.OPERATOR)
 
