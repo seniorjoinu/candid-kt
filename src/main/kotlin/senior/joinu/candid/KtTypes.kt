@@ -20,7 +20,14 @@ open class SimpleIDLService(
     var pollingInterval: Long = 100
 ) {
     suspend fun call(funcName: String, arg: ByteArray): ByteArray {
-        val requestId = submit(funcName, IDLFuncRequestType.Call, arg)
+        val req = ICCommonRequest(
+            IDLFuncRequestType.Call,
+            id!!.data,
+            funcName,
+            arg,
+            SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte)
+        )
+        val requestId = submit(req)
 
         var status: ICStatusResponse
         loop@while (true) {
@@ -38,7 +45,21 @@ open class SimpleIDLService(
     }
 
     suspend fun query(funcName: String, arg: ByteArray): ByteArray {
-        return read(funcName, IDLFuncRequestType.Query, arg)
+        val req = ICCommonRequest(
+            IDLFuncRequestType.Query,
+            id!!.data,
+            funcName,
+            arg,
+            SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte)
+        )
+        val responseBody = read(req)
+        val status = ICStatusResponse.fromCBORBytes(responseBody)
+
+        return when (status) {
+            is ICStatusResponse.Replied -> status.reply.arg
+            is ICStatusResponse.Rejected -> throw RuntimeException("Request was rejected. code: ${status.rejectCode}, message: ${status.rejectMessage}")
+            else -> throw RuntimeException("Unknown response for query")
+        }
     }
 
     suspend fun requestStatus(requestId: ByteArray): ICStatusResponse {
@@ -46,24 +67,12 @@ open class SimpleIDLService(
             requestId,
             SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte)
         )
-        val authReq = req.authenticate(keyPair!!)
-        val body = authReq.cbor()
+        val responseBody = read(req)
 
-        val (responseBody, error) = Fuel.post("${host!!}/api/$apiVersion/read")
-            .body(body)
-            .header("Content-Type", "application/cbor")
-            .awaitByteArrayResult()
-
-        if (error != null) {
-            val errorMessage = error.response.body().toByteArray().toString(StandardCharsets.ISO_8859_1)
-            throw RuntimeException(errorMessage, error)
-        }
-
-        return ICStatusResponse.fromCBORBytes(responseBody!!)
+        return ICStatusResponse.fromCBORBytes(responseBody)
     }
 
-    suspend fun submit(funcName: String, type: IDLFuncRequestType, arg: ByteArray): ByteArray {
-        val req = ICCommonRequest(type, id!!.data, funcName, arg, SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte))
+    suspend fun submit(req: ICRequest): ByteArray {
         val authReq = req.authenticate(keyPair!!)
         val body = authReq.cbor()
 
@@ -80,8 +89,7 @@ open class SimpleIDLService(
         return req.id
     }
 
-    suspend fun read(funcName: String, type: IDLFuncRequestType, arg: ByteArray): ByteArray {
-        val req = ICCommonRequest(type, id!!.data, funcName, arg, SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte))
+    suspend fun read(req: ICRequest): ByteArray {
         val authReq = req.authenticate(keyPair!!)
         val body = authReq.cbor()
 

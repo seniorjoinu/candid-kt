@@ -125,6 +125,9 @@ fun main() {
         val message = Message("Hello, chat!", "Sasha Vtyurin")
         val chat = actor.addMessageAndReturnChat(message)
 
+        val chat1 = actor.returnChat()
+
         println(chat)
+        println(chat1)
     }
 }

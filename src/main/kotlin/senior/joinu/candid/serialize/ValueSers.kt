@@ -396,7 +396,7 @@ object BlobValueSer : ValueSer<ByteArray> {
 
     override fun deser(buf: ByteBuffer): ByteArray {
         val size = Leb128.readUnsigned(buf)
-        val bytes = ByteArray(size.toInt())
+        val bytes = ByteArray(size)
         buf.get(bytes)
 
         return bytes
