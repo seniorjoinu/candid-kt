@@ -3,7 +3,6 @@ package senior.joinu.candid
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.serialize.getTypeSerForType
-import senior.joinu.leb128.Leb128
 import java.nio.ByteBuffer
 
 class TypeTable(

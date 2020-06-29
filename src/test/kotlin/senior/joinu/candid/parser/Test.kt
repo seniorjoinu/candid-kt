@@ -4,18 +4,16 @@ import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Base64
-import kotlin.Boolean
 import kotlin.ByteArray
 import kotlin.Int
 import kotlin.String
 import kotlin.collections.List
 import senior.joinu.candid.CanisterId
 import senior.joinu.candid.EdDSAKeyPair
-import senior.joinu.candid.Null
 import senior.joinu.candid.SimpleIDLFunc
 import senior.joinu.candid.SimpleIDLService
 import senior.joinu.candid.serialize.*
-import senior.joinu.leb128.Leb128
+import senior.joinu.candid.Leb128
 
 data class Value(
     val i: BigInteger,
@@ -49,17 +47,17 @@ sealed class Sign {
 
 object SignValueSer : ValueSer<Sign> {
     override fun calcSizeBytes(value: Sign): Int = when (value) {
-        is Sign.Plus -> senior.joinu.leb128.Leb128.sizeUnsigned(0)
-        is Sign.Minus -> senior.joinu.leb128.Leb128.sizeUnsigned(1)
+        is Sign.Plus -> Leb128.sizeUnsigned(0)
+        is Sign.Minus -> Leb128.sizeUnsigned(1)
     }
 
     override fun ser(buf: ByteBuffer, value: Sign) {
         when (value) {
             is Sign.Plus -> {
-                senior.joinu.leb128.Leb128.writeUnsigned(buf, 0)
+                Leb128.writeUnsigned(buf, 0)
             }
             is Sign.Minus -> {
-                senior.joinu.leb128.Leb128.writeUnsigned(buf, 1)
+                Leb128.writeUnsigned(buf, 1)
             }
         }
     }

@@ -4,7 +4,7 @@ import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import senior.joinu.candid.*
 import senior.joinu.candid.serialize.*
-import senior.joinu.leb128.Leb128
+import senior.joinu.candid.Leb128
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*

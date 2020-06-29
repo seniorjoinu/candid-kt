@@ -2,7 +2,7 @@ package senior.joinu.candid.serialize
 
 import com.squareup.kotlinpoet.CodeBlock
 import senior.joinu.candid.*
-import senior.joinu.leb128.Leb128
+import senior.joinu.candid.Leb128
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
