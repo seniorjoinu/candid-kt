@@ -2,7 +2,9 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.3.72'
 }
 
-group 'senior.joinu'
+apply plugin: 'maven'
+
+group 'com.github.seniorjoinu'
 version '0.1-SNAPSHOT'
 
 repositories {
