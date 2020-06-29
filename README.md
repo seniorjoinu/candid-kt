@@ -1,16 +1,49 @@
-### Work in progress
-You can inspect currently generated code in the `test` dir - result of input `.did` from `GrammarTest.kt` is saved into `Test.kt`
+[![Release](https://jitpack.io/v/seniorjoinu/candid-kt.svg?style=flat-square)](https://jitpack.io/#seniorjoinu/candid-kt)
 
-### What's missing
-* imports
-* future types
-* tests
+### Candid-kt
+Generates client code for your canisters
+
+### Install
+Use Jitpack
+```groovy
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+```groovy
+dependencies {
+    implementation 'com.github.seniorjoinu:candid-kt:Tag'
+}
+```
+
+### Usage
+
+Use code generator to generate everything you need to interact with the IC
+```kotlin
+CandidCodeGenerator.generateFor(
+    "path to .did file, e.g. ~/project/canisters/proj/main.did",
+    "path where you want to save generated .kt file, e.g. ~/kt-project/src/main/kotlin/com.org.generated/Proj.kt",
+    "package of the generated .kt file, e.g. com.org.generated",
+    "optional, encoding of the .did file"
+)
+```
+
+### Pros
+* Idiomatic Kotlin
+* Asynchronous http with coroutines
+* Reflectionless (almost)single-allocation (de)serialization
+
+### Cons
+* Unstable
 
 ### Type conversion rules
 | IDL | Kotlin |
 | --- | --- |
 | type T = "existing type" | typealias T = "existing type" |
-| int, nat | `BigInteger` with signum |
+| int, nat | `BigInteger` |
 | int8, nat8 | `Byte` |
 | int16, nat16 | `Short` |
 | int32, nat32 | `Int` |
