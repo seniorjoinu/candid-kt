@@ -175,7 +175,7 @@ val keyPair = EdDSAKeyPair.generateInsecure()
 val actor = MainActor("http://localhost:8000", id, keyPair)
 
 runBlocking {
-    val message = Message("Hello, chat!", "Sasha Vtyurin")
+    val message = Message(message = "Hello, chat!", sender = "Sasha Vtyurin")
     val chat = actor.addMessageAndReturnChat(message)
     println(chat)
 
