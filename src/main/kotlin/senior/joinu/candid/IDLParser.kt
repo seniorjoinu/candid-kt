@@ -3,63 +3,64 @@ package senior.joinu.candid
 import com.github.h0tk3y.betterParse.combinators.*
 import com.github.h0tk3y.betterParse.grammar.Grammar
 import com.github.h0tk3y.betterParse.grammar.parser
+import com.github.h0tk3y.betterParse.lexer.literalToken
+import com.github.h0tk3y.betterParse.lexer.regexToken
+import com.github.h0tk3y.betterParse.lexer.token
 import com.github.h0tk3y.betterParse.parser.Parser
-import senior.joinu.candid.IDLGrammar.getValue
-import senior.joinu.candid.IDLGrammar.provideDelegate
 import java.util.regex.Pattern
 
 
 object IDLGrammar : Grammar<IDLProgram>() {
     // -----------------------------PUNCTUATION-------------------------------
-    private val tSLComment by token("//.*?[\r\n]", ignore = true)
-    private val tColon by token(":")
-    private val tSemicolon by token(";")
-    private val tComma by token(",")
-    private val tAssign by token("=")
-    private val tArrow by token("->")
-    private val tOpBlock by token("\\{")
-    private val tClBlock by token("}")
-    private val tOpBracket by token("\\(")
-    private val tClBracket by token("\\)")
-    private val tWs by token("\\s+", ignore = true)
+    private val tSLComment by regexToken("//.*?[\r\n]", ignore = true)
+    private val tColon by literalToken(":")
+    private val tSemicolon by literalToken(";")
+    private val tComma by literalToken(",")
+    private val tAssign by literalToken("=")
+    private val tArrow by literalToken("->")
+    private val tOpBlock by literalToken("{")
+    private val tClBlock by literalToken("}")
+    private val tOpBracket by literalToken("(")
+    private val tClBracket by literalToken(")")
+    private val tWs by regexToken("\\s+", ignore = true)
 
     // -----------------------------KEYWORDS-------------------------------
-    private val tType by token("type")
-    private val tImport by token("import")
-    private val tOneway by token("oneway")
-    private val tQuery by token("query")
-    private val tVec by token("vec")
-    private val tOpt by token("opt")
-    private val tRecord by token("record")
-    private val tVariant by token("variant")
-    private val tFunc by token("func")
-    private val tService by token("service")
-    private val tPrincipal by token("principal")
+    private val tType by literalToken("type")
+    private val tImport by literalToken("import")
+    private val tOneway by literalToken("oneway")
+    private val tQuery by literalToken("query")
+    private val tVec by literalToken("vec")
+    private val tOpt by literalToken("opt")
+    private val tRecord by literalToken("record")
+    private val tVariant by literalToken("variant")
+    private val tFunc by literalToken("func")
+    private val tService by literalToken("service")
+    private val tPrincipal by literalToken("principal")
 
-    private val tNat8 by token("nat8")
-    private val tNat16 by token("nat16")
-    private val tNat32 by token("nat32")
-    private val tNat64 by token("nat64")
-    private val tNat by token("nat")
-    private val tInt8 by token("int8")
-    private val tInt16 by token("int16")
-    private val tInt32 by token("int32")
-    private val tInt64 by token("int64")
-    private val tInt by token("int")
-    private val tFloat32 by token("float32")
-    private val tFloat64 by token("float64")
-    private val tBool by token("bool")
-    private val tText by token("text")
-    private val tNull by token("null")
-    private val tReserved by token("reserved")
-    private val tEmpty by token("empty")
-    private val tBlob by token("blob")
+    private val tNat8 by literalToken("nat8")
+    private val tNat16 by literalToken("nat16")
+    private val tNat32 by literalToken("nat32")
+    private val tNat64 by literalToken("nat64")
+    private val tNat by literalToken("nat")
+    private val tInt8 by literalToken("int8")
+    private val tInt16 by literalToken("int16")
+    private val tInt32 by literalToken("int32")
+    private val tInt64 by literalToken("int64")
+    private val tInt by literalToken("int")
+    private val tFloat32 by literalToken("float32")
+    private val tFloat64 by literalToken("float64")
+    private val tBool by literalToken("bool")
+    private val tText by literalToken("text")
+    private val tNull by literalToken("null")
+    private val tReserved by literalToken("reserved")
+    private val tEmpty by literalToken("empty")
+    private val tBlob by literalToken("blob")
 
     // -----------------------------Nat-------------------------------
-    private val tHex by token("0x[0-9a-fA-F][_0-9a-fA-F]*")
-    private val tId by token("[A-Za-z_][A-Za-z0-9_]*")
-    private val tDec by token("[\\-+]?[0-9][_0-9]*")
-    private val tUtfScalar by token(
+    private val tHex by regexToken("0x[0-9a-fA-F][_0-9a-fA-F]*")
+    private val tId by regexToken("[A-Za-z_][A-Za-z0-9_]*")
+    private val tDec by regexToken("[\\-+]?[0-9][_0-9]*")
+    private val tUtfScalar by regexToken(
         Pattern.compile("\"[\\w._\\-\\\\/:]+\"", Pattern.UNICODE_CHARACTER_CLASS).pattern()
     ) // TODO: check if it is a scalar for sure
 
