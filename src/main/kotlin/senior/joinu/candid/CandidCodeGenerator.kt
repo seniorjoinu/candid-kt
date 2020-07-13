@@ -10,13 +10,13 @@ object CandidCodeGenerator {
     fun generateFor(
         didPath: Path,
         genPath: Path,
-        genPackage: String,
+        genPackage: String = "",
         didEncoding: Charset = StandardCharsets.UTF_8
     ) {
         val did = didPath.toFile().readText(didEncoding)
 
         val program = IDLGrammar.parseToEnd(did)
-        val ktContext = KtTranspiler.transpile(program, genPackage, genPath.fileName.toString())
+        val ktContext = KtTranspiler.transpile(program, genPackage, didPath.fileName.toString())
         val spec = ktContext.currentSpec.build()
 
         spec.writeTo(genPath)
