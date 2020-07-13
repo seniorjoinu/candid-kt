@@ -3,33 +3,9 @@
 ### Candid-kt
 Generates client code for your canisters
 
-### Install
-Use Jitpack
-```groovy
-allprojects {
-    repositories {
-        ...
-        maven { url 'https://jitpack.io' }
-    }
-}
-```
-```groovy
-dependencies {
-    implementation 'com.github.seniorjoinu:candid-kt:Tag'
-}
-```
-
 ### Usage
 
-Use code generator to generate everything you need to interact with the IC
-```kotlin
-CandidCodeGenerator.generateFor(
-    "path to .did file, e.g. ~/project/canisters/proj/main.did",
-    "path where you want to save generated .kt file, e.g. ~/kt-project/src/main/kotlin/com.org.generated/Proj.kt",
-    "package of the generated .kt file, e.g. com.org.generated",
-    "optional, encoding of the .did file"
-)
-```
+Use [gradle plugin](https://github.com/seniorjoinu/candid-kt-gradle-plugin) to generate Kotlin code out of candid code.
 
 For example, this candid code
 ```
@@ -175,7 +151,7 @@ val keyPair = EdDSAKeyPair.generateInsecure()
 val actor = MainActor("http://localhost:8000", id, keyPair)
 
 runBlocking {
-    val message = Message("Hello, chat!", "Sasha Vtyurin")
+    val message = Message(message = "Hello, chat!", sender = "Sasha Vtyurin")
     val chat = actor.addMessageAndReturnChat(message)
     println(chat)
 
