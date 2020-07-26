@@ -14,8 +14,12 @@ import spock.lang.Unroll
 class IDLGrammarSpecification extends Specification {
     @Unroll def 'test service method #methodName'() {
         given: 'a test fixture'
-        String idl = "service : { $methodName: (${getVarargs(arguments)}) -> (${getVarargs(results)}); }"
-        println(">>> IDL"); println(idl); println('')
+        String idl = """
+            service : {
+               $methodName: (${getVarargs(arguments)}) -> (${getVarargs(results)});
+            }
+        """.stripIndent()
+        println(">>> IDL $idl")
         List<IDLFuncAnn> annotations = []
         IDLMethodType methodType = new IDLType.Reference.Func(arguments.collect { new IDLArgType(null, it) }, results.collect { new IDLArgType(null, it) }, annotations)
         IDLMethod method = new IDLMethod(methodName, methodType)
@@ -39,11 +43,14 @@ class IDLGrammarSpecification extends Specification {
         result == program
 
         where: 'the service signature is as defined here'
-        methodName | arguments                         | results
-        'greet'    | [IDLType.Primitive.Text.INSTANCE] | [IDLType.Primitive.Text.INSTANCE]
+        methodName      | arguments                         | results
+        'greet'         | [IDLType.Primitive.Text.INSTANCE] | [IDLType.Primitive.Text.INSTANCE]
+        'configure'     | [IDLType.Primitive.Text.INSTANCE] | []
     }
 
-    static String getVarargs(List<IDLType> args) {
-        return args.collect { it.toString().toLowerCase() }.join(' ,')
+    private static String getVarargs(List<IDLType> args) {
+        return args.collect { //TODO :: Need a better type-token mapping approach
+            it.toString().toLowerCase()
+        }.join(' ,')
     }
 }
