@@ -179,7 +179,7 @@ sealed class IDLType {
             val annotations: List<IDLFuncAnn> = emptyList()
         ) : Reference(), IDLMethodType {
             companion object { const val text = "func" }
-            override fun toString() = TODO("Not yet implemented")
+            override fun toString() = "${arguments.joinToString(",", "(", ")")} -> ${results.joinToString(",", "(", ");")}"
             override fun poetize(): String {
                 val poetizedArgs = arguments.joinToString { it.poetize() }
                 val poetizedRess = results.joinToString { it.poetize() }
@@ -196,7 +196,7 @@ sealed class IDLType {
 
         data class Service(val methods: List<IDLMethod> = emptyList()) : Reference(), IDLActorType {
             companion object { const val text = "service" }
-            override fun toString() = TODO("Not yet implemented")
+            override fun toString() = "$text : {${methods.joinToString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())}}"
             override fun poetize(): String {
                 val poetizedMethods = methods.joinToString { it.poetize() }
                 return CodeBlock.of("%T(methods = listOf($poetizedMethods))", Service::class).toString()
@@ -342,7 +342,7 @@ data class IDLFieldType(val name: String?, val type: IDLType, var idx: Int) {
 }
 
 data class IDLArgType(val name: String?, val type: IDLType) {
-    override fun toString() = TODO("Not yet implemented")
+    override fun toString() = type.toString()
     fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()})", IDLArgType::class.asTypeName()).toString()
 }
 
@@ -362,6 +362,7 @@ enum class IDLFuncAnn {
 }
 
 data class IDLMethod(val name: String, val type: IDLMethodType) {
+    override fun toString() = "\"$name\": $type"
     fun poetize() = CodeBlock.of("%T($name, ${(type as IDLType).poetize()})", IDLMethod::class.asTypeName()).toString()
 }
 
@@ -376,8 +377,14 @@ sealed class IDLDef {
     }
 }
 
-data class IDLActorDef(val name: String?, val type: IDLActorType)
-data class IDLProgram(val imports: List<IDLDef.Import>, val types: List<IDLDef.Type>, val actor: IDLActorDef?)
+data class IDLActorDef(val name: String?, val type: IDLActorType) {
+    override fun toString() = type.toString()
+}
+data class IDLProgram(val imports: List<IDLDef.Import>, val types: List<IDLDef.Type>, val actor: IDLActorDef?) {
+    private val sectionImports: String = if (imports.isEmpty()) "" else imports.joinToString(System.lineSeparator(), "", System.lineSeparator())
+    private val sectionTypes: String = if (types.isEmpty()) "" else types.joinToString(System.lineSeparator(), "", System.lineSeparator())
+    override fun toString() = "$sectionImports$sectionTypes$actor"
+}
 
 interface IDLMethodType
 
