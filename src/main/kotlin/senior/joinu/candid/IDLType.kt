@@ -178,8 +178,9 @@ sealed class IDLType {
             val results: List<IDLArgType> = emptyList(),
             val annotations: List<IDLFuncAnn> = emptyList()
         ) : Reference(), IDLMethodType {
+            private val sectionAnnotations: String = if (annotations.isEmpty()) "" else annotations.joinToString(", ")
             companion object { const val text = "func" }
-            override fun toString() = "${arguments.joinToString(",", "(", ")")} -> ${results.joinToString(",", "(", ")")} ${annotations.joinToString(",")};"
+            override fun toString() = "${arguments.joinToString(",", "(", ")")} -> ${results.joinToString(",", "(", ")")}$sectionAnnotations;"
             override fun poetize(): String {
                 val poetizedArgs = arguments.joinToString { it.poetize() }
                 val poetizedRess = results.joinToString { it.poetize() }
@@ -361,7 +362,7 @@ enum class IDLFuncAnn {
 }
 
 data class IDLMethod(val name: String, val type: IDLMethodType) {
-    override fun toString() = "\"$name\": $type"
+    override fun toString() = "    \"$name\": $type"
     fun poetize() = CodeBlock.of("%T($name, ${(type as IDLType).poetize()})", IDLMethod::class.asTypeName()).toString()
 }
 
