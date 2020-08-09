@@ -179,7 +179,7 @@ sealed class IDLType {
             val annotations: List<IDLFuncAnn> = emptyList()
         ) : Reference(), IDLMethodType {
             companion object { const val text = "func" }
-            override fun toString() = "${arguments.joinToString(",", "(", ")")} -> ${results.joinToString(",", "(", ");")}"
+            override fun toString() = "${arguments.joinToString(",", "(", ")")} -> ${results.joinToString(",", "(", ")")} ${annotations.joinToString(",")};"
             override fun poetize(): String {
                 val poetizedArgs = arguments.joinToString { it.poetize() }
                 val poetizedRess = results.joinToString { it.poetize() }
@@ -231,7 +231,7 @@ sealed class IDLType {
 
         data class Record(val fields: List<IDLFieldType> = emptyList()) : Constructive() {
             companion object { const val text = "record" }
-            override fun toString() = "$text { ${fields.joinToString("; ","",";") { it.toString() }} }"
+            override fun toString() = "$text { ${fields.joinToString("; ","",";")} }"
             override fun poetize(): String {
                 val poetizedFields = fields.joinToString { it.poetize() }
                 return CodeBlock.of("%T(fields = listOf($poetizedFields))", Record::class).toString()
@@ -240,7 +240,7 @@ sealed class IDLType {
 
         data class Variant(val fields: List<IDLFieldType> = emptyList()) : Constructive() {
             companion object { const val text = "variant" }
-            override fun toString() = TODO("Not yet implemented")
+            override fun toString() = "$text { ${fields.joinToString("; ","",";")} }"
             override fun poetize(): String {
                 val poetizedFields = fields.joinToString { it.poetize() }
                 return CodeBlock.of("%T(fields = listOf($poetizedFields))", Variant::class).toString()
@@ -349,15 +349,14 @@ data class IDLArgType(val name: String?, val type: IDLType) {
 enum class IDLFuncAnn {
     Oneway {
         override var text = "oneway"
-        override fun toString() = TODO("Not yet implemented")
         override fun poetize() = CodeBlock.of("%T", Oneway::class.asTypeName()).toString()
     },
     Query {
         override var text = "query"
-        override fun toString() = TODO("Not yet implemented")
         override fun poetize() = CodeBlock.of("%T", Query::class.asTypeName()).toString()
     };
     abstract val text: String
+    override fun toString() = text
     abstract fun poetize(): String
 }
 
