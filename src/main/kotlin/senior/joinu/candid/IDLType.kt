@@ -178,7 +178,7 @@ sealed class IDLType {
             val results: List<IDLArgType> = emptyList(),
             val annotations: List<IDLFuncAnn> = emptyList()
         ) : Reference(), IDLMethodType {
-            private val sectionAnnotations: String = if (annotations.isEmpty()) "" else annotations.joinToString(", ")
+            private val sectionAnnotations: String = if (annotations.isEmpty()) "" else annotations.joinToString(", ", " ")
             companion object { const val text = "func" }
             override fun toString() = "${arguments.joinToString(", ", "(", ")")} -> ${results.joinToString(", ", "(", ")")}$sectionAnnotations;"
             override fun poetize(): String {
@@ -226,7 +226,7 @@ sealed class IDLType {
 
         object Blob : Constructive() {
             const val text = "blob"
-            override fun toString() = TODO("Not yet implemented")
+            override fun toString() = text
             override fun poetize() = CodeBlock.of("%T", Blob::class).toString()
         }
 
@@ -343,7 +343,7 @@ data class IDLFieldType(val name: String?, val type: IDLType, var idx: Int) {
 }
 
 data class IDLArgType(val name: String?, val type: IDLType) {
-    override fun toString() = type.toString()
+    override fun toString() = "${if (name == null) "" else "$name: "}$type"
     fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()})", IDLArgType::class.asTypeName()).toString()
 }
 
