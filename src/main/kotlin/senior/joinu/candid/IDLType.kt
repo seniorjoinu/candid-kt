@@ -180,7 +180,7 @@ sealed class IDLType {
         ) : Reference(), IDLMethodType {
             private val sectionAnnotations: String = if (annotations.isEmpty()) "" else annotations.joinToString(", ")
             companion object { const val text = "func" }
-            override fun toString() = "${arguments.joinToString(",", "(", ")")} -> ${results.joinToString(",", "(", ")")}$sectionAnnotations;"
+            override fun toString() = "${arguments.joinToString(", ", "(", ")")} -> ${results.joinToString(", ", "(", ")")}$sectionAnnotations;"
             override fun poetize(): String {
                 val poetizedArgs = arguments.joinToString { it.poetize() }
                 val poetizedRess = results.joinToString { it.poetize() }

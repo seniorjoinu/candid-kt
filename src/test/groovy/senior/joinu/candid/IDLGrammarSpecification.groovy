@@ -44,7 +44,7 @@ class IDLGrammarSpecification extends Specification {
     @Unroll def 'positive single service with parameters #methodName'() {
         given: 'a test fixture'
         List<IDLDef.Type> types = [
-            new IDLDef.Type('Key', new IDLType.Constructive.Record([new IDLFieldType('preimage', new IDLType.Constructive.Vec(IDLType.Primitive.Nat8.INSTANCE), UtilsKt.idlHash('preimage')), new IDLFieldType('image', new IDLType.Constructive.Vec(IDLType.Primitive.Nat8.INSTANCE), UtilsKt.idlHash('image'))])),
+            new IDLDef.Type('Key', new IDLType.Constructive.Record([createFieldType('preimage', new IDLType.Constructive.Vec(IDLType.Primitive.Nat8.INSTANCE)), createFieldType('image', new IDLType.Constructive.Vec(IDLType.Primitive.Nat8.INSTANCE))])),
             new IDLDef.Type('List', new IDLType.Constructive.Opt(new IDLType.Constructive.Record([new IDLFieldType(null, new IDLType.Id('Key'), 0), new IDLFieldType(null, new IDLType.Id('List'), 1)]))),
             new IDLDef.Type('Bucket', new IDLType.Id('List')),
             new IDLDef.Type('List_2', new IDLType.Constructive.Opt(new IDLType.Constructive.Record([new IDLFieldType(null, IDLType.Primitive.Text.INSTANCE, 0), new IDLFieldType(null, new IDLType.Id('List_2'), 1)]))),
@@ -68,12 +68,39 @@ class IDLGrammarSpecification extends Specification {
         'putWithTrace'  | [new IDLType.Constructive.Vec(IDLType.Primitive.Nat8.INSTANCE), new IDLType.Constructive.Vec(IDLType.Primitive.Nat8.INSTANCE), new IDLType.Id('Bucket')] | [IDLType.Primitive.Bool.INSTANCE]
     }
 
-    def 'positive multiple services with parameters #methodName'() {
+    def 'positive single service with recursive parameters'() {
         given: 'a test fixture'
         List<IDLDef.Type> types = [
-            new IDLDef.Type('Value', new IDLType.Constructive.Record([new IDLFieldType('i', IDLType.Primitive.Integer.INSTANCE, UtilsKt.idlHash('i')), new IDLFieldType('n', IDLType.Primitive.Natural.INSTANCE, UtilsKt.idlHash('n'))])),
-            new IDLDef.Type('Sign', new IDLType.Constructive.Variant([new IDLFieldType('Plus', IDLType.Primitive. Null.INSTANCE, UtilsKt.idlHash('Plus')), new IDLFieldType('Minus', IDLType.Primitive. Null.INSTANCE, UtilsKt.idlHash('Minus'))])),
-            new IDLDef.Type('Message', new IDLType.Constructive.Record([new IDLFieldType('sender', IDLType.Primitive.Text.INSTANCE, UtilsKt.idlHash('sender')), new IDLFieldType('message', IDLType.Primitive.Text.INSTANCE, UtilsKt.idlHash('message'))])),
+            new IDLDef.Type('Version_3', new IDLType.Constructive.Variant([createFieldType('Version', IDLType.Primitive.Natural.INSTANCE)])),
+            new IDLDef.Type('Version_2', new IDLType.Id('Version_3')),
+            new IDLDef.Type('Version', new IDLType.Id('Version_2')),
+            new IDLDef.Type('Mode_3', new IDLType.Constructive.Variant([createFieldType('Kanji', IDLType.Primitive.Null.INSTANCE), createFieldType('Numeric', IDLType.Primitive.Null.INSTANCE), createFieldType('EightBit', IDLType.Primitive.Null.INSTANCE), createFieldType('Alphanumeric', IDLType.Primitive.Null.INSTANCE)])),
+            new IDLDef.Type('Mode_2', new IDLType.Id('Mode_3')),
+            new IDLDef.Type('Mode', new IDLType.Id('Mode_2')),
+            new IDLDef.Type('ErrorCorrection_3', new IDLType.Constructive.Variant([createFieldType('H', IDLType.Primitive.Null.INSTANCE), createFieldType('L', IDLType.Primitive.Null.INSTANCE), createFieldType('M', IDLType.Primitive.Null.INSTANCE), createFieldType('Q', IDLType.Primitive.Null.INSTANCE)])),
+            new IDLDef.Type('ErrorCorrection_2', new IDLType.Id('ErrorCorrection_3')),
+            new IDLDef.Type('ErrorCorrection', new IDLType.Id('ErrorCorrection_2')),
+        ]
+        List<IDLMethod> methods = [createMethod('encode', [new IDLType.Id('Version'), new IDLType.Id('ErrorCorrection'), new IDLType.Id('Mode'), IDLType.Primitive.Text.INSTANCE], [IDLType.Primitive.Text.INSTANCE])]
+        IDLProgram program = createProgram(methods, types)
+
+        when: 'the Kotlin source is generated from the IDL'
+        IDLProgram result = GrammarKt.parseToEnd(IDLGrammar.INSTANCE, program.toString())
+
+        then: 'the program matches the expectation'
+        result == program
+        noExceptionThrown()
+
+        and: 'printed to standard output for no good reason'
+        transpileProgram(result)
+    }
+
+    def 'positive multiple services with parameters and annotations'() {
+        given: 'a test fixture'
+        List<IDLDef.Type> types = [
+            new IDLDef.Type('Value', new IDLType.Constructive.Record([createFieldType('i', IDLType.Primitive.Integer.INSTANCE), createFieldType('n', IDLType.Primitive.Natural.INSTANCE)])),
+            new IDLDef.Type('Sign', new IDLType.Constructive.Variant([createFieldType('Plus', IDLType.Primitive.Null.INSTANCE), createFieldType('Minus', IDLType.Primitive.Null.INSTANCE)])),
+            new IDLDef.Type('Message', new IDLType.Constructive.Record([createFieldType('sender', IDLType.Primitive.Text.INSTANCE), createFieldType('message', IDLType.Primitive.Text.INSTANCE)])),
             new IDLDef.Type('Chat', new IDLType.Constructive.Vec(new IDLType.Id('Message'))),
         ]
         List<IDLMethod> methods = [
@@ -92,6 +119,10 @@ class IDLGrammarSpecification extends Specification {
 
         and: 'printed to standard output for no good reason'
         transpileProgram(result)
+    }
+
+    private static IDLFieldType createFieldType(String name, IDLType type) {
+        new IDLFieldType(name, type, UtilsKt.idlHash(name))
     }
 
     private static IDLMethod createMethod(String methodName, List<IDLType> arguments, List<IDLType> results) {
