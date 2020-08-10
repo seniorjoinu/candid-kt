@@ -196,8 +196,7 @@ sealed class IDLType {
         }
 
         data class Service(val methods: List<IDLMethod> = emptyList()) : Reference(), IDLActorType {
-            companion object { const val text = "service" }
-            override fun toString() = "$text : {${methods.joinToString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())}}"
+            override fun toString() = "{${methods.joinToString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())}}"
             override fun poetize(): String {
                 val poetizedMethods = methods.joinToString { it.poetize() }
                 return CodeBlock.of("%T(methods = listOf($poetizedMethods))", Service::class).toString()
@@ -232,7 +231,7 @@ sealed class IDLType {
 
         data class Record(val fields: List<IDLFieldType> = emptyList()) : Constructive() {
             companion object { const val text = "record" }
-            override fun toString() = "$text { ${fields.joinToString("; ","",";")} }"
+            override fun toString() = "$text {${if (fields.isEmpty()) "" else fields.joinToString("; ", " ", "; ")}}"
             override fun poetize(): String {
                 val poetizedFields = fields.joinToString { it.poetize() }
                 return CodeBlock.of("%T(fields = listOf($poetizedFields))", Record::class).toString()
@@ -241,7 +240,7 @@ sealed class IDLType {
 
         data class Variant(val fields: List<IDLFieldType> = emptyList()) : Constructive() {
             companion object { const val text = "variant" }
-            override fun toString() = "$text { ${fields.joinToString("; ","",";")} }"
+            override fun toString() = "$text {${if (fields.isEmpty()) "" else fields.joinToString("; ", " ", "; ")}}"
             override fun poetize(): String {
                 val poetizedFields = fields.joinToString { it.poetize() }
                 return CodeBlock.of("%T(fields = listOf($poetizedFields))", Variant::class).toString()
@@ -338,7 +337,7 @@ sealed class IDLType {
 }
 
 data class IDLFieldType(val name: String?, val type: IDLType, var idx: Int) {
-    override fun toString() =  (if (name != null) "\"${name}\": " else "") + type.toString()
+    override fun toString() = "${if (name == null) "" else "\"$name\": "}$type"
     fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()}, $idx)", IDLFieldType::class.asTypeName()).toString()
 }
 
@@ -378,8 +377,10 @@ sealed class IDLDef {
 }
 
 data class IDLActorDef(val name: String?, val type: IDLActorType) {
-    override fun toString() = type.toString()
+    companion object { const val text = "service" }
+    override fun toString() = "$text${if (name == null) "" else " $name"} : $type;"
 }
+
 data class IDLProgram(val imports: List<IDLDef.Import>, val types: List<IDLDef.Type>, val actor: IDLActorDef?) {
     private val sectionImports: String = if (imports.isEmpty()) "" else imports.joinToString(System.lineSeparator(), "", System.lineSeparator())
     private val sectionTypes: String = if (types.isEmpty()) "" else types.joinToString(System.lineSeparator(), "", System.lineSeparator())

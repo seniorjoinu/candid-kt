@@ -34,7 +34,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val tRecord by literalToken(IDLType.Constructive.Record.text)
     private val tVariant by literalToken(IDLType.Constructive.Variant.text)
     private val tFunc by literalToken(IDLType.Reference.Func.text)
-    private val tService by literalToken(IDLType.Reference.Service.text)
+    private val tService by literalToken(IDLActorDef.text)
     private val tPrincipal by literalToken(IDLType.Reference.Principal.text)
 
     private val tNat8 by literalToken(IDLType.Primitive.Nat8.text)
