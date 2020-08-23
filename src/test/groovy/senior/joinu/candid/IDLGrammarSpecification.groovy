@@ -19,6 +19,8 @@ class IDLGrammarSpecification extends Specification {
         List<IDLDef.Type> types = [
             new IDLDef.Type('my_type', IDLType.Primitive.Nat8.INSTANCE),
             new IDLDef.Type('List', new IDLType.Constructive.Record([createFieldType('head', IDLType.Primitive.Integer.INSTANCE), createFieldType('tail', new IDLType.Constructive.Opt(new IDLType.Id('List')))]) ),
+            new IDLDef.Type('f', createReferenceFunction([new IDLType.Id('List'), createReferenceFunction([IDLType.Primitive.Int32.INSTANCE], [IDLType.Primitive.Int64.INSTANCE], [])], [new IDLType.Constructive.Opt(new IDLType.Id('List'))], [])),
+            new IDLDef.Type('broker', createReferenceService([createMethodWithNamedParameters('find', [new Tuple2<>('name', IDLType.Primitive.Text.INSTANCE)], [new Tuple2<>(null, createReferenceService([createMethod('current', [], [IDLType.Primitive.Nat32.INSTANCE]), createMethod('up', [], [])]))])])),
             new IDLDef.Type('nested', new IDLType.Constructive.Record([createFieldType(0, IDLType.Primitive.Natural.INSTANCE), createFieldType(1, IDLType.Primitive.Natural.INSTANCE), createFieldType(2, new IDLType.Constructive.Record([createFieldType(0, IDLType.Primitive.Natural.INSTANCE), createFieldType(1, IDLType.Primitive.Nat8.INSTANCE), createFieldType("0x2a", IDLType.Primitive.Natural.INSTANCE)])), createFieldType(3, new IDLType.Constructive.Variant([createFieldType(0, new IDLType.Id('A')), createFieldType(1, new IDLType.Id('B')), createFieldType(2, new IDLType.Id('C')), createFieldType("0x2a", IDLType.Primitive.Null.INSTANCE)])), createFieldType("40", IDLType.Primitive.Natural.INSTANCE), createFieldType("42", IDLType.Primitive.Natural.INSTANCE)])),
         ]
         List<IDLMethod> methods = [
@@ -164,9 +166,25 @@ class IDLGrammarSpecification extends Specification {
         createMethodWithNamedParameters(methodName, arguments.collect { new Tuple2<String, IDLType>(null, it)} as List<Tuple2<String, IDLType>>, results.collect { new Tuple2<String, IDLType>(null, it) } as List<Tuple2<String, IDLType>>, annotations)
     }
 
+    private static IDLMethod createMethodWithNamedParameters(String methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results) {
+        createMethodWithNamedParameters(methodName, arguments, results, [])
+    }
+
     private static IDLMethod createMethodWithNamedParameters(String methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results, List<IDLFuncAnn> annotations) {
-        IDLMethodType methodType = new IDLType.Reference.Func(arguments.collect { new IDLArgType(it.v1, it.v2) }, results.collect { new IDLArgType(it.v1, it.v2) }, annotations)
+        IDLMethodType methodType = createFunctionWithParameters(arguments, results, annotations)
         new IDLMethod(methodName, methodType)
+    }
+
+    private static IDLType.Reference.Func createFunctionWithParameters(List<Tuple2<String, IDLType>> arguments, List<Tuple2<String, IDLType>> results, List<IDLFuncAnn> annotations) {
+        new IDLType.Reference.Func(arguments.collect { new IDLArgType(it.v1, it.v2) }, results.collect { new IDLArgType(it.v1, it.v2) }, annotations)
+    }
+
+    private static IDLType.Reference createReferenceFunction(List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
+        new IDLType.Reference.Func(arguments.collect { new IDLArgType(null, it) }, results.collect { new IDLArgType(null, it) }, annotations)
+    }
+
+    private static IDLType.Reference createReferenceService(List<IDLMethod> methods) {
+        new IDLType.Reference.Service(methods)
     }
 
     private static IDLProgram createProgram(List<IDLMethod> methods) {
@@ -180,7 +198,7 @@ class IDLGrammarSpecification extends Specification {
     private static IDLProgram createProgram(String serviceName, List<IDLMethod> methods, List<IDLDef.Type> types) {
         List<IDLDef.Import> imports = []
         IDLType.Reference reference = new IDLType.Reference.Service(methods)
-        IDLActorDef actor = new IDLActorDef(serviceName, reference)
+        IDLActor actor = new IDLActor(serviceName, reference)
         IDLProgram program = new IDLProgram(imports, types, actor)
         println(">>> IDL")
         println(program)

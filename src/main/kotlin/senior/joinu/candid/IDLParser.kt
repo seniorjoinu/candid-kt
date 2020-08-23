@@ -5,7 +5,6 @@ import com.github.h0tk3y.betterParse.grammar.Grammar
 import com.github.h0tk3y.betterParse.grammar.parser
 import com.github.h0tk3y.betterParse.lexer.literalToken
 import com.github.h0tk3y.betterParse.lexer.regexToken
-import com.github.h0tk3y.betterParse.lexer.token
 import com.github.h0tk3y.betterParse.parser.Parser
 import java.util.regex.Pattern
 
@@ -34,7 +33,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val tRecord by literalToken(IDLType.Constructive.Record.text)
     private val tVariant by literalToken(IDLType.Constructive.Variant.text)
     private val tFunc by literalToken(IDLType.Reference.Func.text)
-    private val tService by literalToken(IDLActorDef.text)
+    private val tService by literalToken(IDLType.Reference.Service.text)
     private val tPrincipal by literalToken(IDLType.Reference.Principal.text)
 
     private val tNat8 by literalToken(IDLType.Primitive.Nat8.text)
@@ -92,11 +91,11 @@ object IDLGrammar : Grammar<IDLProgram>() {
     }
     private val pDef: Parser<IDLDef> by pTypeDef or pImportDef
 
-    private val pActorTypeType: Parser<IDLActorType> by parser { pActorType } or parser { pId }
-    private val pActor: Parser<IDLActorDef> by skip(tService) and optional(parser { pId }) and skip(
+    private val pActorType: Parser<IDLActorType> by parser { pActorService } or parser { pId }
+    private val pActor: Parser<IDLActor> by skip(tService) and optional(parser { pId }) and skip(
         tColon
-    ) and pActorTypeType map { (id, type) ->
-        IDLActorDef(id?.value, type)
+    ) and pActorType map { (id, type) ->
+        IDLActor(id?.value, type)
     }
 
     // -----------------------------COMPTYPE-------------------------------
@@ -105,7 +104,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
             tSemicolon
         )
     ))
-    private val pActorType: Parser<IDLType.Reference.Service> by skip(tOpBlock) and pMethTypeList and skip(
+    private val pActorService: Parser<IDLType.Reference.Service> by skip(tOpBlock) and pMethTypeList and skip(
         tClBlock
     ) map { methods ->
         IDLType.Reference.Service(methods.sortedBy { it.name })
@@ -255,14 +254,14 @@ object IDLGrammar : Grammar<IDLProgram>() {
     }
 
     // -----------------------------REFTYPE-------------------------------
-    private val pRefType: Parser<IDLType.Reference> by parser { pFunc } or parser { pService } or parser { pPrincipal }
-    private val pFunc: Parser<IDLType.Reference.Func> by skip(tFunc) and pFuncType use {
+    private val pRefType: Parser<IDLType.Reference> by parser { pRefTypeFunc } or parser { pRefTypeService } or parser { pRefTypePrincipal }
+    private val pRefTypeFunc: Parser<IDLType.Reference.Func> by skip(tFunc) and pFuncType use {
         this
     }
-    private val pService: Parser<IDLType.Reference.Service> by skip(tService) and pActorType use {
+    private val pRefTypeService: Parser<IDLType.Reference.Service> by skip(tService) and pActorService use {
         this
     }
-    private val pPrincipal: Parser<IDLType.Reference.Principal> by tPrincipal asJust IDLType.Reference.Principal
+    private val pRefTypePrincipal: Parser<IDLType.Reference.Principal> by tPrincipal asJust IDLType.Reference.Principal
 
     // -----------------------------OTHER-------------------------------
     private val pName: Parser<IDLToken.Name> by parser { pId } or parser { pTextVal } use {
