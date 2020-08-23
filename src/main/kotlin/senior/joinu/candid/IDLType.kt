@@ -361,8 +361,8 @@ enum class IDLFuncAnn {
     abstract fun poetize(): String
 }
 
-data class IDLMethod(val name: String, val type: IDLMethodType) {
-    override fun toString() = "    \"$name\": ${type.toString().replace(IDLType.Reference.Func.text, "")};"
+data class IDLMethod(val name: IDLTextToken, val type: IDLMethodType) {
+    override fun toString() = "    $name: ${type.toString().replace(IDLType.Reference.Func.text, "")};"
     fun poetize() = CodeBlock.of("%T($name, ${(type as IDLType).poetize()})", IDLMethod::class.asTypeName()).toString()
 }
 
@@ -371,9 +371,9 @@ sealed class IDLDef {
         companion object { const val text = "type" }
         override fun toString() = "$text $name = $type;"
     }
-    data class Import(val filePath: String) : IDLDef() {
+    data class Import(val filePath: IDLToken.TextVal) : IDLDef() {
         companion object { const val text = "import" }
-        override fun toString() = "$text \"$filePath\";"
+        override fun toString() = "$text $filePath;"
     }
 }
 

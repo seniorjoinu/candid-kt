@@ -87,7 +87,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
         IDLDef.Type(name.value, type)
     }
     private val pImportDef by skip(tImport) and parser { pTextVal } use {
-        IDLDef.Import(this.value)
+        IDLDef.Import(IDLToken.TextVal(this.value))
     }
     private val pDef: Parser<IDLDef> by pTypeDef or pImportDef
 
@@ -107,14 +107,14 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pActorService: Parser<IDLType.Reference.Service> by skip(tOpBlock) and pMethTypeList and skip(
         tClBlock
     ) map { methods ->
-        IDLType.Reference.Service(methods.sortedBy { it.name })
+        IDLType.Reference.Service(methods.sortedBy { it.name.toString() })
     }
 
     private val pMethTypeType: Parser<IDLMethodType> by parser { pFuncType } or parser { pId }
-    private val pMethType: Parser<IDLMethod> by parser { pName } and skip(
+    private val pMethType: Parser<IDLMethod> by parser { pNameId } or parser { pNameText } and skip(
         tColon
     ) and pMethTypeType map { (name, type) ->
-        IDLMethod(name.value, type)
+        IDLMethod(name, type)
     }
 
     private val pArgTypeList by zeroOrMore(parser { pArgType } and skip(optional(tComma)))
@@ -135,7 +135,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pPosArgType by parser { pDataType } use {
         IDLArgType(null, this)
     }
-    private val pNameArgType by parser { pName } and skip(
+    private val pNameArgType by parser { pNameId } or parser { pNameText } and skip(
         tColon
     ) and parser { pDataType } map { (name, type) ->
         IDLArgType(name.value, type)
@@ -154,7 +154,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
             is IDLToken.NatVal.Hex -> IDLFieldType(name.value, type, name.value.drop(2).toInt(16))
         }
     }
-    private val pStrNameFieldType: Parser<IDLFieldType> by parser { pName } and skip(tColon) and
+    private val pStrNameFieldType: Parser<IDLFieldType> by parser { pNameId} or parser { pNameText } and skip(tColon) and
             parser { pDataType } map { (name, type) ->
         IDLFieldType(name.value, type, idlHash(name.value))
     }
@@ -175,7 +175,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pShortRecordFieldType: Parser<IDLFieldType> by parser { pDataType } use {
         IDLFieldType(null, this, -1)
     }
-    private val pShortStrNameFieldType: Parser<IDLFieldType> by parser { pName } use {
+    private val pShortStrNameFieldType: Parser<IDLFieldType> by parser { pNameId } or parser { pNameText } use {
         val id = IDLType.Id(value)
 
         if (ids.contains(id)) {
@@ -264,8 +264,11 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pRefTypePrincipal: Parser<IDLType.Reference.Principal> by tPrincipal asJust IDLType.Reference.Principal
 
     // -----------------------------OTHER-------------------------------
-    private val pName: Parser<IDLToken.Name> by parser { pId } or parser { pTextVal } use {
-        IDLToken.Name(value)
+    private val pNameId: Parser<IDLTextToken> by parser { pId } use {
+        IDLType.Id(value)
+    }
+    private val pNameText: Parser<IDLTextToken> by parser { pTextVal } use {
+        IDLToken.TextVal(value)
     }
     private val ids = mutableSetOf<IDLType.Id>()
     private val pId: Parser<IDLType.Id> by tId use {
@@ -296,9 +299,7 @@ sealed class IDLToken {
         class Hex(val value: String) : NatVal()
     }
 
-    class TextVal(override val value: String) : IDLToken(),
-        IDLTextToken
-
-    class Name(override val value: String) : IDLToken(),
-        IDLTextToken
+    data class TextVal(override val value: String) : IDLTextToken {
+        override fun toString() = "\"$value\""
+    }
 }

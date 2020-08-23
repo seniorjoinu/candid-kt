@@ -17,20 +17,20 @@ class IDLGrammarSpecification extends Specification {
         given: 'a test fixture'
         String serviceName = 'server'
         List<IDLDef.Import> imports = [
-            new IDLDef.Import('test.did')
+            new IDLDef.Import(new IDLToken.TextVal('test.did'))
         ]
         List<IDLDef.Type> types = [
             new IDLDef.Type('my_type', IDLType.Primitive.Nat8.INSTANCE),
             new IDLDef.Type('List', new IDLType.Constructive.Record([createFieldType('head', IDLType.Primitive.Integer.INSTANCE), createFieldType('tail', new IDLType.Constructive.Opt(new IDLType.Id('List')))]) ),
             new IDLDef.Type('f', createReferenceFunction([new IDLType.Id('List'), createReferenceFunction([IDLType.Primitive.Int32.INSTANCE], [IDLType.Primitive.Int64.INSTANCE], [])], [new IDLType.Constructive.Opt(new IDLType.Id('List'))], [])),
-            new IDLDef.Type('broker', createReferenceService([createMethodWithNamedParameters('find', [new Tuple2<>('name', IDLType.Primitive.Text.INSTANCE)], [new Tuple2<>(null, createReferenceService([createMethod('current', [], [IDLType.Primitive.Nat32.INSTANCE]), createMethod('up', [], [])]))])])),
+            new IDLDef.Type('broker', createReferenceService([createMethodWithNamedParameters(new IDLType.Id('find'), [new Tuple2<>('name', IDLType.Primitive.Text.INSTANCE)], [new Tuple2<>(null, createReferenceService([createMethod(new IDLType.Id('current'), [], [IDLType.Primitive.Nat32.INSTANCE]), createMethod(new IDLType.Id('up'), [], [])]))])])),
             new IDLDef.Type('nested', new IDLType.Constructive.Record([createFieldType(0, IDLType.Primitive.Natural.INSTANCE), createFieldType(1, IDLType.Primitive.Natural.INSTANCE), createFieldType(2, new IDLType.Constructive.Record([createFieldType(0, IDLType.Primitive.Natural.INSTANCE), createFieldType(1, IDLType.Primitive.Nat8.INSTANCE), createFieldType("0x2a", IDLType.Primitive.Natural.INSTANCE)])), createFieldType(3, new IDLType.Constructive.Variant([createFieldType(0, new IDLType.Id('A')), createFieldType(1, new IDLType.Id('B')), createFieldType(2, new IDLType.Id('C')), createFieldType("0x2a", IDLType.Primitive.Null.INSTANCE)])), createFieldType("40", IDLType.Primitive.Natural.INSTANCE), createFieldType("42", IDLType.Primitive.Natural.INSTANCE)])),
         ]
         List<IDLMethod> methods = [
-            createMethodWithNamedParameters('f', [new Tuple2<>('test', IDLType.Constructive.Blob.INSTANCE), new Tuple2<>(null, new IDLType.Constructive.Opt(IDLType.Primitive.Bool.INSTANCE))], [], [IDLFuncAnn.valueOf('Oneway')]),
-            createMethod('g', [new IDLType.Id('my_type'), new IDLType.Id('List'), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [IDLType.Primitive.Integer.INSTANCE], [IDLFuncAnn.valueOf('Query')]),
-            createMethod('h', [new IDLType.Constructive.Vec(new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE)), new IDLType.Constructive.Variant([createFieldType('A', IDLType.Primitive.Natural.INSTANCE), createFieldType('B', new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE))]), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [new IDLType.Constructive.Record([createFieldType('id', IDLType.Primitive.Natural.INSTANCE), createFieldType('0x2a', new IDLType.Constructive.Record([]))])], []),
-            new IDLMethod('i', new IDLType.Id('f')),
+            createMethodWithNamedParameters(new IDLType.Id('f'), [new Tuple2<>('test', IDLType.Constructive.Blob.INSTANCE), new Tuple2<>(null, new IDLType.Constructive.Opt(IDLType.Primitive.Bool.INSTANCE))], [], [IDLFuncAnn.valueOf('Oneway')]),
+            createMethod(new IDLType.Id('g'), [new IDLType.Id('my_type'), new IDLType.Id('List'), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [IDLType.Primitive.Integer.INSTANCE], [IDLFuncAnn.valueOf('Query')]),
+            createMethod(new IDLType.Id('h'), [new IDLType.Constructive.Vec(new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE)), new IDLType.Constructive.Variant([createFieldType('A', IDLType.Primitive.Natural.INSTANCE), createFieldType('B', new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE))]), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [new IDLType.Constructive.Record([createFieldType('id', IDLType.Primitive.Natural.INSTANCE), createFieldType('0x2a', new IDLType.Constructive.Record([]))])], []),
+            new IDLMethod(new IDLType.Id('i'), new IDLType.Id('f')),
         ]
         IDLProgram program = createProgram(serviceName, methods, types, imports)
 
@@ -47,7 +47,7 @@ class IDLGrammarSpecification extends Specification {
 
     @Unroll def 'positive single service #methodName'() {
         given: 'a test fixture'
-        IDLProgram program = createProgram([createMethod(methodName, arguments, results)])
+        IDLProgram program = createProgram([createMethod(new IDLToken.TextVal(methodName), arguments, results)])
 
         when: 'the Kotlin source is generated from the IDL'
         IDLProgram result = GrammarKt.parseToEnd(IDLGrammar.INSTANCE, program.toString())
@@ -81,7 +81,7 @@ class IDLGrammarSpecification extends Specification {
             new IDLDef.Type('Bucket', new IDLType.Id('List')),
             new IDLDef.Type('List_2', new IDLType.Constructive.Opt(new IDLType.Constructive.Record([createFieldType(0, IDLType.Primitive.Text.INSTANCE), createFieldType(1, new IDLType.Id('List_2'))]))),
         ]
-        IDLProgram program = createProgram([createMethod(methodName, arguments, results)], types)
+        IDLProgram program = createProgram([createMethod(new IDLToken.TextVal(methodName), arguments, results)], types)
 
         when: 'the Kotlin source is generated from the IDL'
         IDLProgram result = GrammarKt.parseToEnd(IDLGrammar.INSTANCE, program.toString())
@@ -113,7 +113,7 @@ class IDLGrammarSpecification extends Specification {
             new IDLDef.Type('ErrorCorrection_2', new IDLType.Id('ErrorCorrection_3')),
             new IDLDef.Type('ErrorCorrection', new IDLType.Id('ErrorCorrection_2')),
         ]
-        List<IDLMethod> methods = [createMethod('encode', [new IDLType.Id('Version'), new IDLType.Id('ErrorCorrection'), new IDLType.Id('Mode'), IDLType.Primitive.Text.INSTANCE], [IDLType.Primitive.Text.INSTANCE])]
+        List<IDLMethod> methods = [createMethod(new IDLToken.TextVal('encode'), [new IDLType.Id('Version'), new IDLType.Id('ErrorCorrection'), new IDLType.Id('Mode'), IDLType.Primitive.Text.INSTANCE], [IDLType.Primitive.Text.INSTANCE])]
         IDLProgram program = createProgram(methods, types)
 
         when: 'the Kotlin source is generated from the IDL'
@@ -136,9 +136,9 @@ class IDLGrammarSpecification extends Specification {
             new IDLDef.Type('Chat', new IDLType.Constructive.Vec(new IDLType.Id('Message'))),
         ]
         List<IDLMethod> methods = [
-            createMethod('addMessageAndReturnChat', [new IDLType.Id('Message')], [new IDLType.Id('Chat')]),
-            createMethod('getValue', [new IDLType.Id('Sign')], [new IDLType.Id('Value')], [IDLFuncAnn.valueOf('Query')]),
-            createMethod('returnChat', [], [new IDLType.Id('Chat')], [IDLFuncAnn.valueOf('Query')]),
+            createMethod(new IDLToken.TextVal('addMessageAndReturnChat'), [new IDLType.Id('Message')], [new IDLType.Id('Chat')]),
+            createMethod(new IDLToken.TextVal('getValue'), [new IDLType.Id('Sign')], [new IDLType.Id('Value')], [IDLFuncAnn.valueOf('Query')]),
+            createMethod(new IDLToken.TextVal('returnChat'), [], [new IDLType.Id('Chat')], [IDLFuncAnn.valueOf('Query')]),
         ]
         IDLProgram program = createProgram(methods, types)
 
@@ -161,19 +161,19 @@ class IDLGrammarSpecification extends Specification {
         new IDLFieldType(name, type, UtilsKt.idlHash(name))
     }
 
-    private static IDLMethod createMethod(String methodName, List<IDLType> arguments, List<IDLType> results) {
+    private static IDLMethod createMethod(IDLTextToken methodName, List<IDLType> arguments, List<IDLType> results) {
         createMethod(methodName, arguments, results, [])
     }
 
-    private static IDLMethod createMethod(String methodName, List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
+    private static IDLMethod createMethod(IDLTextToken methodName, List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
         createMethodWithNamedParameters(methodName, arguments.collect { new Tuple2<String, IDLType>(null, it)} as List<Tuple2<String, IDLType>>, results.collect { new Tuple2<String, IDLType>(null, it) } as List<Tuple2<String, IDLType>>, annotations)
     }
 
-    private static IDLMethod createMethodWithNamedParameters(String methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results) {
+    private static IDLMethod createMethodWithNamedParameters(IDLTextToken methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results) {
         createMethodWithNamedParameters(methodName, arguments, results, [])
     }
 
-    private static IDLMethod createMethodWithNamedParameters(String methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results, List<IDLFuncAnn> annotations) {
+    private static IDLMethod createMethodWithNamedParameters(IDLTextToken methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results, List<IDLFuncAnn> annotations) {
         IDLMethodType methodType = createFunctionWithParameters(arguments, results, annotations)
         new IDLMethod(methodName, methodType)
     }
