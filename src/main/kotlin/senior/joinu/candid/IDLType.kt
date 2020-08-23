@@ -373,7 +373,7 @@ sealed class IDLDef {
     }
     data class Import(val filePath: String) : IDLDef() {
         companion object { const val text = "import" }
-        override fun toString() = TODO("Not yet implemented")
+        override fun toString() = "$text \"$filePath\";"
     }
 }
 

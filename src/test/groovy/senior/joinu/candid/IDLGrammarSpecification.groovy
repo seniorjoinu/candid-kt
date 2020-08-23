@@ -16,6 +16,9 @@ class IDLGrammarSpecification extends Specification {
     def 'positive multiple service with multiple nested parameters'() {
         given: 'a test fixture'
         String serviceName = 'server'
+        List<IDLDef.Import> imports = [
+            new IDLDef.Import('test.did')
+        ]
         List<IDLDef.Type> types = [
             new IDLDef.Type('my_type', IDLType.Primitive.Nat8.INSTANCE),
             new IDLDef.Type('List', new IDLType.Constructive.Record([createFieldType('head', IDLType.Primitive.Integer.INSTANCE), createFieldType('tail', new IDLType.Constructive.Opt(new IDLType.Id('List')))]) ),
@@ -29,7 +32,7 @@ class IDLGrammarSpecification extends Specification {
             createMethod('h', [new IDLType.Constructive.Vec(new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE)), new IDLType.Constructive.Variant([createFieldType('A', IDLType.Primitive.Natural.INSTANCE), createFieldType('B', new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE))]), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [new IDLType.Constructive.Record([createFieldType('id', IDLType.Primitive.Natural.INSTANCE), createFieldType('0x2a', new IDLType.Constructive.Record([]))])], []),
             new IDLMethod('i', new IDLType.Id('f')),
         ]
-        IDLProgram program = createProgram(serviceName, methods, types)
+        IDLProgram program = createProgram(serviceName, methods, types, imports)
 
         when: 'the Kotlin source is generated from the IDL'
         IDLProgram result = GrammarKt.parseToEnd(IDLGrammar.INSTANCE, program.toString())
@@ -196,7 +199,10 @@ class IDLGrammarSpecification extends Specification {
     }
 
     private static IDLProgram createProgram(String serviceName, List<IDLMethod> methods, List<IDLDef.Type> types) {
-        List<IDLDef.Import> imports = []
+        createProgram(serviceName, methods, types, [])
+    }
+
+    private static IDLProgram createProgram(String serviceName, List<IDLMethod> methods, List<IDLDef.Type> types, List<IDLDef.Import> imports) {
         IDLType.Reference reference = new IDLType.Reference.Service(methods)
         IDLActor actor = new IDLActor(serviceName, reference)
         IDLProgram program = new IDLProgram(imports, types, actor)
