@@ -426,7 +426,7 @@ class FuncTypeSer(
     }
 }
 
-class ServiceTypeSer(val innerSers: Map<IDLTextToken, TypeSer>) : TypeSer {
+class ServiceTypeSer(val innerSers: Map<IDLName, TypeSer>) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.SERVICE.value)
         Leb128.writeUnsigned(buf, innerSers.size)
@@ -603,7 +603,7 @@ object TypeDeser {
         return (0 until typesCount).map { readIDLType(buf, typeTable) }
     }
 
-    fun readIDLName(buf: ByteBuffer): IDLTextToken {
+    fun readIDLName(buf: ByteBuffer): IDLName {
         val nameLength = Leb128.readUnsigned(buf)
         val nameBytes = ByteArray(nameLength)
         buf.get(nameBytes)

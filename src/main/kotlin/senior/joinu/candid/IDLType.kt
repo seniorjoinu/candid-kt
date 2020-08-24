@@ -166,7 +166,7 @@ class TypeTable(
 sealed class IDLType {
     abstract fun poetize(): String
 
-    data class Id(override val value: String) : IDLType(), IDLMethodType, IDLTextToken, IDLActorType {
+    data class Id(override val value: String) : IDLType(), IDLMethodType, IDLName, IDLActorType {
         companion object { const val pattern: String = "[A-Za-z_][A-Za-z0-9_]*" }
         override fun toString() = value
         override fun poetize() = CodeBlock.of("%T(\"$value\")", Id::class).toString()
@@ -206,7 +206,7 @@ sealed class IDLType {
 
         object Principal : Reference() {
             const val text = "principal"
-            override fun toString() = TODO("Not yet implemented")
+            override fun toString() = text
             override fun poetize() = CodeBlock.of("%T", Principal::class).toString()
         }
     }
@@ -361,7 +361,7 @@ enum class IDLFuncAnn {
     abstract fun poetize(): String
 }
 
-data class IDLMethod(val name: IDLTextToken, val type: IDLMethodType) {
+data class IDLMethod(val name: IDLName, val type: IDLMethodType) {
     override fun toString() = "    $name: ${type.toString().replace(IDLType.Reference.Func.text, "")};"
     fun poetize() = CodeBlock.of("%T($name, ${(type as IDLType).poetize()})", IDLMethod::class.asTypeName()).toString()
 }

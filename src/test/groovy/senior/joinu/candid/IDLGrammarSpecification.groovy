@@ -161,19 +161,19 @@ class IDLGrammarSpecification extends Specification {
         new IDLFieldType(name, type, UtilsKt.idlHash(name))
     }
 
-    private static IDLMethod createMethod(IDLTextToken methodName, List<IDLType> arguments, List<IDLType> results) {
+    private static IDLMethod createMethod(IDLName methodName, List<IDLType> arguments, List<IDLType> results) {
         createMethod(methodName, arguments, results, [])
     }
 
-    private static IDLMethod createMethod(IDLTextToken methodName, List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
+    private static IDLMethod createMethod(IDLName methodName, List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
         createMethodWithNamedParameters(methodName, arguments.collect { new Tuple2<String, IDLType>(null, it)} as List<Tuple2<String, IDLType>>, results.collect { new Tuple2<String, IDLType>(null, it) } as List<Tuple2<String, IDLType>>, annotations)
     }
 
-    private static IDLMethod createMethodWithNamedParameters(IDLTextToken methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results) {
+    private static IDLMethod createMethodWithNamedParameters(IDLName methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results) {
         createMethodWithNamedParameters(methodName, arguments, results, [])
     }
 
-    private static IDLMethod createMethodWithNamedParameters(IDLTextToken methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results, List<IDLFuncAnn> annotations) {
+    private static IDLMethod createMethodWithNamedParameters(IDLName methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results, List<IDLFuncAnn> annotations) {
         IDLMethodType methodType = createFunctionWithParameters(arguments, results, annotations)
         new IDLMethod(methodName, methodType)
     }

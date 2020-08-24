@@ -55,13 +55,11 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val tEmpty by literalToken(IDLType.Primitive.Empty.text)
     private val tBlob by literalToken(IDLType.Constructive.Blob.text)
 
-    // -----------------------------Nat-------------------------------
-    private val tHex by regexToken("0x[0-9a-fA-F][_0-9a-fA-F]*")
+    // -----------------------------Name/Nat-------------------------------
     private val tId by regexToken(IDLType.Id.pattern)
-    private val tDec by regexToken("[\\-+]?[0-9][_0-9]*")
-    private val tUtfScalar by regexToken(
-        Pattern.compile("\"[\\w._\\-\\\\/:]+\"", Pattern.UNICODE_CHARACTER_CLASS).pattern()
-    ) // TODO: check if it is a scalar for sure
+    private val tHex by regexToken(IDLToken.NatVal.Hex.pattern)
+    private val tDec by regexToken(IDLToken.NatVal.Dec.pattern)
+    private val tUtfScalar by regexToken(IDLToken.TextVal.pattern) // TODO: check if it is a scalar for sure
 
     // -----------------------------ROOT-------------------------------
     private val pDefList by zeroOrMore(parser { pDef } and skip(
@@ -86,7 +84,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     ) and parser { pDataType } map { (name, type) ->
         IDLDef.Type(name.value, type)
     }
-    private val pImportDef by skip(tImport) and parser { pTextVal } use {
+    private val pImportDef by skip(tImport) and parser { pUtfScalar } use {
         IDLDef.Import(IDLToken.TextVal(this.value))
     }
     private val pDef: Parser<IDLDef> by pTypeDef or pImportDef
@@ -111,7 +109,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     }
 
     private val pMethTypeType: Parser<IDLMethodType> by parser { pFuncType } or parser { pId }
-    private val pMethType: Parser<IDLMethod> by parser { pNameId } or parser { pNameText } and skip(
+    private val pMethType: Parser<IDLMethod> by parser { pId } or parser { pUtfScalar } and skip(
         tColon
     ) and pMethTypeType map { (name, type) ->
         IDLMethod(name, type)
@@ -135,7 +133,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pPosArgType by parser { pDataType } use {
         IDLArgType(null, this)
     }
-    private val pNameArgType by parser { pNameId } or parser { pNameText } and skip(
+    private val pNameArgType by parser { pId } or parser { pUtfScalar } and skip(
         tColon
     ) and parser { pDataType } map { (name, type) ->
         IDLArgType(name.value, type)
@@ -154,7 +152,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
             is IDLToken.NatVal.Hex -> IDLFieldType(name.value, type, name.value.drop(2).toInt(16))
         }
     }
-    private val pStrNameFieldType: Parser<IDLFieldType> by parser { pNameId} or parser { pNameText } and skip(tColon) and
+    private val pStrNameFieldType: Parser<IDLFieldType> by parser { pId} or parser { pUtfScalar } and skip(tColon) and
             parser { pDataType } map { (name, type) ->
         IDLFieldType(name.value, type, idlHash(name.value))
     }
@@ -175,7 +173,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pShortRecordFieldType: Parser<IDLFieldType> by parser { pDataType } use {
         IDLFieldType(null, this, -1)
     }
-    private val pShortStrNameFieldType: Parser<IDLFieldType> by parser { pNameId } or parser { pNameText } use {
+    private val pShortStrNameFieldType: Parser<IDLFieldType> by parser { pId } or parser { pUtfScalar } use {
         val id = IDLType.Id(value)
 
         if (ids.contains(id)) {
@@ -264,20 +262,14 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pRefTypePrincipal: Parser<IDLType.Reference.Principal> by tPrincipal asJust IDLType.Reference.Principal
 
     // -----------------------------OTHER-------------------------------
-    private val pNameId: Parser<IDLTextToken> by parser { pId } use {
-        IDLType.Id(value)
-    }
-    private val pNameText: Parser<IDLTextToken> by parser { pTextVal } use {
-        IDLToken.TextVal(value)
+    private val pUtfScalar: Parser<IDLName> by tUtfScalar use {
+        IDLToken.TextVal(text.substring(1, text.length - 1))
     }
     private val ids = mutableSetOf<IDLType.Id>()
     private val pId: Parser<IDLType.Id> by tId use {
         val id = IDLType.Id(text)
         ids.add(id)
         id
-    }
-    private val pTextVal: Parser<IDLToken.TextVal> by tUtfScalar use {
-        IDLToken.TextVal(text.substring(1, text.length - 1))
     }
     private val pNatDec by tDec use {
         val value = text.filterNot { it == '_' }.toInt()
@@ -289,17 +281,22 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pNatVal: Parser<IDLToken.NatVal> by pNatDec or pNatHex
 }
 
-interface IDLTextToken {
+interface IDLName {
     val value: String
 }
 
 sealed class IDLToken {
     sealed class NatVal : IDLToken() {
-        class Dec(val value: Int) : NatVal()
-        class Hex(val value: String) : NatVal()
+        class Dec(val value: Int) : NatVal() {
+            companion object { const val pattern: String = "[\\-+]?[0-9][_0-9]*" }
+        }
+        class Hex(val value: String) : NatVal() {
+            companion object { const val pattern: String = "0x[0-9a-fA-F][_0-9a-fA-F]*" }
+        }
     }
 
-    data class TextVal(override val value: String) : IDLTextToken {
+    data class TextVal(override val value: String) : IDLName {
+        companion object { val pattern: String = Pattern.compile("\"[\\w._\\-\\\\/:]+\"", Pattern.UNICODE_CHARACTER_CLASS).pattern() }
         override fun toString() = "\"$value\""
     }
 }
