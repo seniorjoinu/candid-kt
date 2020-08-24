@@ -338,7 +338,7 @@ sealed class IDLType {
 }
 
 data class IDLFieldType(val name: String?, val type: IDLType, var idx: Int) {
-    override fun toString() = "${if (name == null) "" else "\"$name\": "}$type"
+    override fun toString() = "${if (name == null) "" else "$name: "}$type"
     fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()}, $idx)", IDLFieldType::class.asTypeName()).toString()
 }
 

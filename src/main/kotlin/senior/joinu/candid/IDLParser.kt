@@ -152,7 +152,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
             is IDLToken.NatVal.Hex -> IDLFieldType(name.value, type, name.value.drop(2).toInt(16))
         }
     }
-    private val pStrNameFieldType: Parser<IDLFieldType> by parser { pId} or parser { pUtfScalar } and skip(tColon) and
+    private val pStrNameFieldType: Parser<IDLFieldType> by parser { pId } or parser { pUtfScalar } and skip(tColon) and
             parser { pDataType } map { (name, type) ->
         IDLFieldType(name.value, type, idlHash(name.value))
     }

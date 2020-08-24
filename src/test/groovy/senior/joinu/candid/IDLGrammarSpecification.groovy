@@ -29,7 +29,7 @@ class IDLGrammarSpecification extends Specification {
         List<IDLMethod> methods = [
             createMethodWithNamedParameters(new IDLType.Id('f'), [new Tuple2<>('test', IDLType.Constructive.Blob.INSTANCE), new Tuple2<>(null, new IDLType.Constructive.Opt(IDLType.Primitive.Bool.INSTANCE))], [], [IDLFuncAnn.valueOf('Oneway')]),
             createMethod(new IDLType.Id('g'), [new IDLType.Id('my_type'), new IDLType.Id('List'), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [IDLType.Primitive.Integer.INSTANCE], [IDLFuncAnn.valueOf('Query')]),
-            createMethod(new IDLType.Id('h'), [new IDLType.Constructive.Vec(new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE)), new IDLType.Constructive.Variant([createFieldType('A', IDLType.Primitive.Natural.INSTANCE), createFieldType('B', new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE))]), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [new IDLType.Constructive.Record([createFieldType('id', IDLType.Primitive.Natural.INSTANCE), createFieldType('0x2a', new IDLType.Constructive.Record([]))])], []),
+            createMethod(new IDLType.Id('h'), [new IDLType.Constructive.Vec(new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE)), new IDLType.Constructive.Variant([createFieldType('A', IDLType.Primitive.Natural.INSTANCE), createFieldType('B', new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE))]), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [new IDLType.Constructive.Record([createFieldType('0x2a', new IDLType.Constructive.Record([])), createFieldType('id', IDLType.Primitive.Natural.INSTANCE)])], []),
             new IDLMethod(new IDLType.Id('i'), new IDLType.Id('f')),
         ]
         IDLProgram program = createProgram(serviceName, methods, types, imports)
@@ -153,12 +153,37 @@ class IDLGrammarSpecification extends Specification {
         transpileProgram(result)
     }
 
+    private static int getIndex(String name) {
+        int idx
+        if (containsPrefix(name)) {
+            String value = stripPrefix(name)
+            idx = value.length() == 0 ? 0 : Integer.parseInt(value, 16)
+        } else if(name.isInteger()) {
+            idx = name.toInteger()
+        } else {
+            idx = UtilsKt.idlHash(name)
+        }
+        return idx
+    }
+
+    private static boolean containsPrefix(String input) {
+        return input.length() > 1 && input[0] == '0' && input[1] == 'x'
+    }
+
+    private static String stripPrefix(String input) {
+        if (containsPrefix(input)) {
+            return input.substring(2)
+        } else {
+            return input
+        }
+    }
+
     private static IDLFieldType createFieldType(int idx, IDLType type) {
         new IDLFieldType(null, type, idx)
     }
 
     private static IDLFieldType createFieldType(String name, IDLType type) {
-        new IDLFieldType(name, type, UtilsKt.idlHash(name))
+        new IDLFieldType(name, type, getIndex(name))
     }
 
     private static IDLMethod createMethod(IDLName methodName, List<IDLType> arguments, List<IDLType> results) {
