@@ -35,56 +35,56 @@ class IDLGrammarSpecificationBase extends Specification {
         }
     }
 
-    static IDLFieldType createFieldType(int idx, IDLType type) {
+    static IDLFieldType fieldType(int idx, IDLType type) {
         new IDLFieldType(null, type, idx)
     }
 
-    static IDLFieldType createFieldType(String name, IDLType type) {
+    static IDLFieldType fieldType(String name, IDLType type) {
         new IDLFieldType(name, type, getIndex(name))
     }
 
-    static IDLMethod createMethod(IDLName methodName, List<IDLType> arguments, List<IDLType> results) {
-        createMethod(methodName, arguments, results, [])
+    static IDLMethod method(IDLName methodName, List<IDLType> arguments, List<IDLType> results) {
+        method(methodName, arguments, results, [])
     }
 
-    static IDLMethod createMethod(IDLName methodName, List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
-        createMethodWithNamedParameters(methodName, arguments.collect { new Tuple2<String, IDLType>(null, it)} as List<Tuple2<String, IDLType>>, results.collect { new Tuple2<String, IDLType>(null, it) } as List<Tuple2<String, IDLType>>, annotations)
+    static IDLMethod method(IDLName methodName, List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
+        methodWithNamedArgTypes(methodName, arguments.collect { new Tuple2<String, IDLType>(null, it)} as List<Tuple2<String, IDLType>>, results.collect { new Tuple2<String, IDLType>(null, it) } as List<Tuple2<String, IDLType>>, annotations)
     }
 
-    static IDLMethod createMethodWithNamedParameters(IDLName methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results) {
-        createMethodWithNamedParameters(methodName, arguments, results, [])
+    static IDLMethod methodWithNamedArgTypes(IDLName methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results) {
+        methodWithNamedArgTypes(methodName, arguments, results, [])
     }
 
-    static IDLMethod createMethodWithNamedParameters(IDLName methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results, List<IDLFuncAnn> annotations) {
-        IDLMethodType methodType = createFunctionWithParameters(arguments, results, annotations)
+    static IDLMethod methodWithNamedArgTypes(IDLName methodName, List<Tuple2<String,IDLType>> arguments, List<Tuple2<String,IDLType>> results, List<IDLFuncAnn> annotations) {
+        IDLMethodType methodType = functionWithNamedArgTypes(arguments, results, annotations)
         new IDLMethod(methodName, methodType)
     }
 
-    static IDLType.Reference.Func createFunctionWithParameters(List<Tuple2<String, IDLType>> arguments, List<Tuple2<String, IDLType>> results, List<IDLFuncAnn> annotations) {
+    static IDLType.Reference.Func functionWithNamedArgTypes(List<Tuple2<String, IDLType>> arguments, List<Tuple2<String, IDLType>> results, List<IDLFuncAnn> annotations) {
         new IDLType.Reference.Func(arguments.collect { new IDLArgType(it.v1, it.v2) }, results.collect { new IDLArgType(it.v1, it.v2) }, annotations)
     }
 
-    static IDLType.Reference createReferenceFunction(List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
+    static IDLType.Reference functionAsReference(List<IDLType> arguments, List<IDLType> results, List<IDLFuncAnn> annotations) {
         new IDLType.Reference.Func(arguments.collect { new IDLArgType(null, it) }, results.collect { new IDLArgType(null, it) }, annotations)
     }
 
-    static IDLType.Reference createReferenceService(List<IDLMethod> methods) {
+    static IDLType.Reference serviceAsReference(List<IDLMethod> methods) {
         new IDLType.Reference.Service(methods)
     }
 
-    static IDLProgram createProgram(List<IDLMethod> methods) {
-        createProgram(methods, [])
+    static IDLProgram program(List<IDLMethod> methods) {
+        program(methods, [])
     }
 
-    static IDLProgram createProgram(List<IDLMethod> methods, List<IDLDef.Type> types) {
-        createProgram(null, methods, types)
+    static IDLProgram program(List<IDLMethod> methods, List<IDLDef.Type> types) {
+        program(null, methods, types)
     }
 
-    static IDLProgram createProgram(String serviceName, List<IDLMethod> methods, List<IDLDef.Type> types) {
-        createProgram(serviceName, methods, types, [])
+    static IDLProgram program(String serviceName, List<IDLMethod> methods, List<IDLDef.Type> types) {
+        program(serviceName, methods, types, [])
     }
 
-    static IDLProgram createProgram(String serviceName, List<IDLMethod> methods, List<IDLDef.Type> types, List<IDLDef.Import> imports) {
+    static IDLProgram program(String serviceName, List<IDLMethod> methods, List<IDLDef.Type> types, List<IDLDef.Import> imports) {
         IDLType.Reference reference = new IDLType.Reference.Service(methods)
         IDLActor actor = new IDLActor(serviceName, reference)
         IDLProgram program = new IDLProgram(imports, types, actor)
@@ -94,7 +94,7 @@ class IDLGrammarSpecificationBase extends Specification {
         program
     }
 
-    static void transpileProgram(IDLProgram program) {
+    static void transpile(IDLProgram program) {
         TranspileContext context = KtTranspiler.INSTANCE.transpile(program, "tld.d.etc", "Test.kt")
         FileSpec spec = context.currentSpec.build()
         println("```kotlin")
