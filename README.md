@@ -5,7 +5,7 @@ Generates client code for your canisters
 
 ### Usage
 
-Use [gradle plugin](https://github.com/seniorjoinu/candid-kt-gradle-plugin) to generate Kotlin code out of candid code.
+Use [the gradle plugin](https://github.com/seniorjoinu/candid-kt-gradle-plugin) to generate Kotlin code out of candid code.
 
 For example, this candid code
 ```
