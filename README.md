@@ -1,4 +1,4 @@
-![candid-kt logo](https://github.com/seniorjoinu/candid-kt/blob/master/candid-kt-logo.png?raw=true)
+<img src="https://github.com/seniorjoinu/candid-kt/blob/master/logo.png?raw=true" align="left" width="100%" >
 
 [![Release](https://jitpack.io/v/seniorjoinu/candid-kt.svg?style=flat-square)](https://jitpack.io/#seniorjoinu/candid-kt)
 
