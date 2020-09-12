@@ -1,3 +1,5 @@
+![candid-kt logo](https://github.com/seniorjoinu/candid-kt/blob/master/candid-kt.png?raw=true)
+
 [![Release](https://jitpack.io/v/seniorjoinu/candid-kt.svg?style=flat-square)](https://jitpack.io/#seniorjoinu/candid-kt)
 
 ### Candid-kt
