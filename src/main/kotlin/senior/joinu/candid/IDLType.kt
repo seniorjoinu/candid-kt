@@ -3,6 +3,7 @@ package senior.joinu.candid
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.serialize.getTypeSerForType
+import senior.joinu.candid.transpile.prettyString
 import java.nio.ByteBuffer
 
 class TypeTable(
@@ -333,10 +334,6 @@ sealed class IDLType {
             override fun toString() = TODO("Not yet implemented")
             override fun poetize() = CodeBlock.of("%T($opcode)", Future::class).toString()
         }
-    }
-
-    internal fun <E> prettyString(items: List<E>, separator: String): String {
-        return if (items.isEmpty()) "{}" else "{\n${items.joinToString("$separator\n").prependIndent("    ")}$separator\n}"
     }
 }
 

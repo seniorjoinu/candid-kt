@@ -439,3 +439,7 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
 
     return actorClassName
 }
+
+fun <E> prettyString(items: List<E>, separator: String): String {
+    return if (items.isEmpty()) "{}" else "{\n${items.joinToString("$separator\n").prependIndent("    ")}$separator\n}"
+}
