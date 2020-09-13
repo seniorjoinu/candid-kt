@@ -49,7 +49,8 @@ fun BigInteger.toUBytes(): ByteArray {
 fun ByteArray.toHex() = this.joinToString(separator = "") { it.toInt().and(0xff).toString(16).padStart(2, '0') }
 fun String.hexStringToByteArray() = ByteArray(this.length / 2) { this.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
-fun ByteArray.poetize(): String = Base64.getEncoder().encodeToString(this)
+fun ByteArray.toBase64(): String = Base64.getEncoder().encodeToString(this)
+fun ByteArray.poetize() = toBase64()
 
 // [senior.joinu] - Everything below is from https://github.com/square/kotlinpoet/blob/master/kotlinpoet/src/main/java/com/squareup/kotlinpoet/Util.kt
 // for some reason these functions are internal there :c

@@ -117,7 +117,7 @@ class GrammarTest {
             }
         """.trimIndent()
 
-        val program = IDLGrammar.parseToEnd(testCandid4)
+        val program = IDLGrammar.parseToEnd(testCandid1)
         val ktContext = KtTranspiler.transpile(program, "", "Test.kt")
 
         val fileSpec = ktContext.currentSpec.build()

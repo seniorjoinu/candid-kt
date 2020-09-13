@@ -443,23 +443,23 @@ object FuncValueSer : ValueSer<SimpleIDLFunc> {
 
 object ServiceValueSer : ValueSer<SimpleIDLService> {
     override fun calcSizeBytes(value: SimpleIDLService): Int {
-        return if (value.id != null)
-            Byte.SIZE_BYTES + BlobValueSer.calcSizeBytes(value.id.data)
+        return if (value.canisterId?.id != null)
+            Byte.SIZE_BYTES + BlobValueSer.calcSizeBytes(value.canisterId.id)
         else
             Byte.SIZE_BYTES
     }
 
     override fun ser(buf: ByteBuffer, value: SimpleIDLService) {
-        if (value.id != null) {
+        if (value.canisterId?.id != null) {
             buf.put(1)
-            BlobValueSer.ser(buf, value.id.data)
+            BlobValueSer.ser(buf, value.canisterId.id)
         } else
             buf.put(0)
     }
 
     override fun deser(buf: ByteBuffer): SimpleIDLService {
         val id = when (buf.get()) {
-            1.toByte() -> CanisterId(BlobValueSer.deser(buf))
+            1.toByte() -> SimpleIDLPrincipal(BlobValueSer.deser(buf))
             0.toByte() -> null
             else -> throw RuntimeException("Invalid notOpaque flag met during service deserialization")
         }

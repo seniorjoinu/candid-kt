@@ -407,7 +407,7 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     val actorClassBuilder = TypeSpec.classBuilder(actorClassName)
         .superclass(SimpleIDLService::class)
         .addSuperclassConstructorParameter("host")
-        .addSuperclassConstructorParameter("id")
+        .addSuperclassConstructorParameter("canisterId")
         .addSuperclassConstructorParameter("keyPair")
         .addSuperclassConstructorParameter("apiVersion")
 
@@ -419,7 +419,7 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     // creating a constructor
     val constructorSpec = FunSpec.constructorBuilder()
         .addParameter("host", String::class)
-        .addParameter("id", CanisterId::class.asTypeName().copy(true))
+        .addParameter("canisterId", SimpleIDLPrincipal::class.asTypeName().copy(true))
         .addParameter("keyPair", EdDSAKeyPair::class.asTypeName().copy(true))
     val apiVersionParam = ParameterSpec.builder("apiVersion", String::class.asTypeName()).defaultValue("%S", "v1")
     constructorSpec.addParameter(apiVersionParam.build())
