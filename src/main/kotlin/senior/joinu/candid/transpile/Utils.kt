@@ -430,7 +430,7 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     type.methods.forEach { (methodName, methodType) ->
         val (methodClassName, _) = KtTranspiler.transpileTypeAndValueSer(methodType as IDLType, context)
 
-        val methodProp = PropertySpec.builder(methodName, methodClassName)
+        val methodProp = PropertySpec.builder(methodName.toString(), methodClassName)
             .initializer("%T(\"$methodName\", this)", methodClassName)
         actorClassBuilder.addProperty(methodProp.build())
     }
@@ -438,4 +438,8 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     context.currentSpec.addType(actorClassBuilder.build())
 
     return actorClassName
+}
+
+fun <E> prettyString(items: List<E>, separator: String): String {
+    return if (items.isEmpty()) "{}" else "{\n${items.joinToString("$separator\n").prependIndent("    ")}$separator\n}"
 }

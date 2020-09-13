@@ -1,5 +1,6 @@
 plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.4.10'
+    id 'groovy'
 }
 
 apply plugin: 'maven'
@@ -24,7 +25,10 @@ dependencies {
     implementation 'com.github.kittinunf.fuel:fuel:2.2.3'
     implementation 'com.github.kittinunf.fuel:fuel-coroutines:2.2.3'
 
-    testImplementation "org.junit.jupiter:junit-jupiter:5.6.2"
+    testImplementation(
+        'org.junit.jupiter:junit-jupiter:5.6.2',
+        'org.spockframework:spock-core:2.0-M3-groovy-3.0',
+    )
 }
 
 compileKotlin {
