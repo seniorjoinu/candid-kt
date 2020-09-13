@@ -25,8 +25,6 @@ open class SimpleIDLService(
         )
         val requestId = submit(req)
 
-        println("0x" + requestId.toHex())
-
         var status: ICStatusResponse
         loop@while (true) {
             status = requestStatus(requestId)
