@@ -18,6 +18,7 @@ import net.i2p.crypto.eddsa.spec.EdDSAPublicKeySpec
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.OutputStream
+import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -61,14 +62,16 @@ fun verify(pubKey: EdDSAPublicKey, message: ByteArray, sig: ByteArray): Boolean 
     return sgr.verify(sig)
 }
 
-fun hash(value: String): ByteArray {
-    val digest = MessageDigest.getInstance("SHA-256")
-
-    return digest.digest(value.toByteArray(StandardCharsets.UTF_8))
+enum class HashAlgorithm(val text: String) {
+    SHA256("SHA-256"),
+    SHA224("SHA-224")
 }
 
-fun hash(value: ByteArray): ByteArray {
-    val digest = MessageDigest.getInstance("SHA-256")
+fun hash(value: String, algorithm: HashAlgorithm = HashAlgorithm.SHA256)
+        = hash(value.toByteArray(StandardCharsets.UTF_8), algorithm)
+
+fun hash(value: ByteArray, algorithm: HashAlgorithm = HashAlgorithm.SHA256): ByteArray {
+    val digest = MessageDigest.getInstance(algorithm.text)
 
     return digest.digest(value)
 }
@@ -211,33 +214,27 @@ sealed class ICStatusResponse {
 
 data class ICStatusRequest(
     val requestId: ByteArray,
-    val sender: SimpleIDLPrincipal,
-    val requestType: IDLFuncRequestType = IDLFuncRequestType.RequestStatus,
-    val nonce: ByteArray = randomBytes(9)
+    val requestType: IDLFuncRequestType = IDLFuncRequestType.RequestStatus
 ) : ICRequest {
     override val id: ByteArray by lazy {
         val traversed = listOf(
-            Pair(hash("nonce"), hash(nonce)),
             Pair(hash("request_id"), hash(requestId)),
-            Pair(hash("request_type"), hash(requestType.value)),
-            Pair(hash("sender"), hash(sender.id!!))
+            Pair(hash("request_type"), hash(requestType.value))
         )
 
         calculateRequestId(traversed)
     }
 
     override fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
-        val sign = signInsecure(keyPair.priv, id)
+        val sign = signInsecure(keyPair.priv, wrapRequestId(id))
 
         return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
     }
 
     override fun toCBOR(name: String, builder: MapBuilder<CborBuilder>) {
         builder.putMap(name)
-            .put("nonce", nonce)
             .put("request_id", requestId)
             .put("request_type", requestType.value)
-            .put("sender", sender.id!!)
             .end()
     }
 
@@ -248,18 +245,14 @@ data class ICStatusRequest(
         other as ICStatusRequest
 
         if (!requestId.contentEquals(other.requestId)) return false
-        if (sender != other.sender) return false
         if (requestType != other.requestType) return false
-        if (!nonce.contentEquals(other.nonce)) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = requestId.contentHashCode()
-        result = 31 * result + sender.hashCode()
         result = 31 * result + requestType.hashCode()
-        result = 31 * result + nonce.contentHashCode()
         return result
     }
 }
@@ -270,13 +263,18 @@ interface ICRequest {
     fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest
 }
 
+fun wrapRequestId(id: ByteArray): ByteArray {
+    val prefix = "\nic-request".toByteArray(StandardCharsets.UTF_8)
+    return prefix + id
+}
+
 data class ICCommonRequest(
     val requestType: IDLFuncRequestType,
     val canisterId: ByteArray,
     val methodName: String,
     val arg: ByteArray,
     val sender: SimpleIDLPrincipal,
-    val nonce: ByteArray = randomBytes(9)
+    val nonce: ByteArray = randomBytes(13)
 ) : ICRequest {
     override val id: ByteArray by lazy {
         val traversed = listOf(
@@ -292,7 +290,7 @@ data class ICCommonRequest(
     }
 
     override fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
-        val sign = signInsecure(keyPair.priv, id)
+        val sign = signInsecure(keyPair.priv, wrapRequestId(id))
 
         return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
     }

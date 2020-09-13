@@ -3,18 +3,14 @@ package senior.joinu.candid
 import com.github.kittinunf.fuel.Fuel
 import com.github.kittinunf.fuel.coroutines.awaitByteArrayResult
 import kotlinx.coroutines.delay
+import org.apache.commons.codec.binary.Base32
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import java.util.*
 import java.util.zip.CRC32
-import java.util.zip.Checksum
-import kotlin.experimental.and
-import kotlin.experimental.xor
-import kotlin.math.absoluteValue
 
 open class SimpleIDLService(
     var host: String?,
-    val id: CanisterId?,
+    val canisterId: SimpleIDLPrincipal?,
     var keyPair: EdDSAKeyPair?,
     var apiVersion: String = "v1",
     var pollingInterval: Long = 100
@@ -22,7 +18,7 @@ open class SimpleIDLService(
     suspend fun call(funcName: String, arg: ByteArray): ByteArray {
         val req = ICCommonRequest(
             IDLFuncRequestType.Call,
-            id!!.data,
+            canisterId?.id!!,
             funcName,
             arg,
             SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte)
@@ -47,7 +43,7 @@ open class SimpleIDLService(
     suspend fun query(funcName: String, arg: ByteArray): ByteArray {
         val req = ICCommonRequest(
             IDLFuncRequestType.Query,
-            id!!.data,
+            canisterId!!.id!!,
             funcName,
             arg,
             SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte)
@@ -63,10 +59,7 @@ open class SimpleIDLService(
     }
 
     suspend fun requestStatus(requestId: ByteArray): ICStatusResponse {
-        val req = ICStatusRequest(
-            requestId,
-            SimpleIDLPrincipal.selfAuthenticating(keyPair!!.pub.abyte)
-        )
+        val req = ICStatusRequest(requestId)
         val responseBody = read(req)
 
         return ICStatusResponse.fromCBORBytes(responseBody)
@@ -123,7 +116,7 @@ open class SimpleIDLPrincipal(
 ) {
     companion object {
         fun selfAuthenticating(pubKey: ByteArray): SimpleIDLPrincipal {
-            val pubKeyHash = hash(pubKey)
+            val pubKeyHash = hash(pubKey, HashAlgorithm.SHA224)
             val buf = ByteBuffer.allocate(pubKeyHash.size + 1)
 
             buf.put(pubKeyHash)
@@ -134,29 +127,42 @@ open class SimpleIDLPrincipal(
 
             return SimpleIDLPrincipal(id)
         }
+
+        fun fromHex(hex: String): SimpleIDLPrincipal {
+            return SimpleIDLPrincipal(hex.hexStringToByteArray())
+        }
+
+        fun fromText(principal: String): SimpleIDLPrincipal {
+            val text = principal.toLowerCase().replace("-", "")
+            val bytes = Base32().decode(text)
+
+            return SimpleIDLPrincipal(bytes.copyOfRange(4, bytes.size))
+        }
     }
+
+    fun toText(): String? {
+        if (id == null)
+            return null
+
+        val capacity = 4 + id.size
+        val buf = ByteBuffer.allocate(capacity)
+        val crc = CRC32()
+        crc.update(id)
+        buf.putInt(crc.value.toInt())
+        buf.put(id)
+
+        val arr = buf.array()
+        val str = Base32().encodeToString(arr)
+
+        return str.replace("=", "").chunked(5).joinToString("-").toLowerCase()
+    }
+
+    fun toHex(): String? = id?.toHex()
 }
 
 object Null
 object Reserved
 object Empty
-
-data class CanisterId(val data: ByteArray) {
-    companion object {
-        fun fromCanonical(id: String): CanisterId {
-            check(id.substring(0 until 3).toLowerCase() == "ic:") { "'ic' prefix not found" }
-            val idHex = id.substring(3 until id.length-2)
-            val actualCRCHex = id.substring(id.length-2 until id.length)
-            var expectedCRCHex = CRC8.calc(idHex.hexStringToByteArray()).toString(16)
-            if (expectedCRCHex.length == 1)
-                expectedCRCHex = "0$expectedCRCHex"
-
-            check(actualCRCHex.toLowerCase() == expectedCRCHex.toLowerCase()) { "CRC doesn't match" }
-
-            return CanisterId(idHex.hexStringToByteArray())
-        }
-    }
-}
 
 object CRC8 {
     @JvmStatic

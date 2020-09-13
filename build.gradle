@@ -21,6 +21,7 @@ dependencies {
     implementation 'com.github.square:kotlinpoet:1.6.0'
     implementation 'net.i2p.crypto:eddsa:0.3.0'
     implementation 'co.nstant.in:cbor:0.9'
+    implementation 'commons-codec:commons-codec:1.15'
 
     implementation 'com.github.kittinunf.fuel:fuel:2.2.3'
     implementation 'com.github.kittinunf.fuel:fuel-coroutines:2.2.3'
