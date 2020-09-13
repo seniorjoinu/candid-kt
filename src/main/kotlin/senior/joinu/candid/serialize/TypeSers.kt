@@ -426,12 +426,12 @@ class FuncTypeSer(
     }
 }
 
-class ServiceTypeSer(val innerSers: Map<String, TypeSer>) : TypeSer {
+class ServiceTypeSer(val innerSers: Map<IDLName, TypeSer>) : TypeSer {
     override fun serType(buf: ByteBuffer) {
         Leb128.writeSigned(buf, IDLOpcode.SERVICE.value)
         Leb128.writeUnsigned(buf, innerSers.size)
         innerSers.entries.forEach { (key, ser) ->
-            val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
+            val keyBytes = key.toString().toByteArray(StandardCharsets.UTF_8)
             Leb128.writeUnsigned(buf, keyBytes.size)
             buf.put(keyBytes)
 
@@ -443,7 +443,7 @@ class ServiceTypeSer(val innerSers: Map<String, TypeSer>) : TypeSer {
         return Leb128.sizeSigned(IDLOpcode.SERVICE.value) + Leb128.sizeUnsigned(innerSers.size) +
                 innerSers.entries
                     .map { (key, ser) ->
-                        val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
+                        val keyBytes = key.toString().toByteArray(StandardCharsets.UTF_8)
 
                         Leb128.sizeUnsigned(keyBytes.size) + keyBytes.size + ser.calcTypeSizeBytes()
                     }
@@ -603,6 +603,14 @@ object TypeDeser {
         return (0 until typesCount).map { readIDLType(buf, typeTable) }
     }
 
+    fun readIDLName(buf: ByteBuffer): IDLName {
+        val nameLength = Leb128.readUnsigned(buf)
+        val nameBytes = ByteArray(nameLength)
+        buf.get(nameBytes)
+        val nameStr = nameBytes.toString(StandardCharsets.UTF_8)
+        return if (nameStr.startsWith("\"")) IDLToken.TextVal(nameStr.substring(1, nameStr.length - 1)) else IDLType.Id(nameStr)
+    }
+
     fun readIDLType(buf: ByteBuffer, typeTable: TypeTable): IDLType {
         val opcode = Leb128.readSigned(buf)
 
@@ -685,15 +693,13 @@ object TypeDeser {
             IDLOpcode.SERVICE.value -> {
                 val methodCount = Leb128.readUnsigned(buf)
                 val methods = (0 until methodCount).map {
-                    val nameLength = Leb128.readUnsigned(buf)
-                    val nameBytes = ByteArray(nameLength)
-                    buf.get(nameBytes)
-                    val nameStr = nameBytes.toString(StandardCharsets.UTF_8)
-                    val type = readIDLType(buf, typeTable)
+                    val name = readIDLName(buf)
+                    check((name is IDLType.Id) or (name is IDLToken.TextVal)) { "Method name is not valid!" }
 
+                    val type = readIDLType(buf, typeTable)
                     check((type is IDLType.Id) or (type is IDLType.Reference.Func)) { "Method type is not valid!" }
 
-                    IDLMethod(nameStr, type as IDLMethodType)
+                    IDLMethod(name, type as IDLMethodType)
                 }
 
                 IDLType.Reference.Service(methods)

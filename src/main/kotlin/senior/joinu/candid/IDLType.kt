@@ -3,6 +3,7 @@ package senior.joinu.candid
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.serialize.getTypeSerForType
+import senior.joinu.candid.transpile.prettyString
 import java.nio.ByteBuffer
 
 class TypeTable(
@@ -166,7 +167,9 @@ class TypeTable(
 sealed class IDLType {
     abstract fun poetize(): String
 
-    data class Id(override val value: String) : IDLType(), IDLMethodType, IDLTextToken, IDLActorType {
+    data class Id(override val value: String) : IDLType(), IDLMethodType, IDLName, IDLActorType {
+        companion object { const val pattern: String = "[A-Za-z_][A-Za-z0-9_]*" }
+        override fun toString() = value
         override fun poetize() = CodeBlock.of("%T(\"$value\")", Id::class).toString()
     }
 
@@ -176,6 +179,8 @@ sealed class IDLType {
             val results: List<IDLArgType> = emptyList(),
             val annotations: List<IDLFuncAnn> = emptyList()
         ) : Reference(), IDLMethodType {
+            companion object { const val text = "func" }
+            override fun toString() = "$text${arguments.joinToString(", ", "(", ")")} -> ${results.joinToString(", ", "(", ")")}${if (annotations.isEmpty()) "" else annotations.joinToString(", ", " ")}"
             override fun poetize(): String {
                 val poetizedArgs = arguments.joinToString { it.poetize() }
                 val poetizedRess = results.joinToString { it.poetize() }
@@ -191,6 +196,8 @@ sealed class IDLType {
         }
 
         data class Service(val methods: List<IDLMethod> = emptyList()) : Reference(), IDLActorType {
+            companion object { const val text = "service" }
+            override fun toString() = "$text ${prettyString(methods, "")}"
             override fun poetize(): String {
                 val poetizedMethods = methods.joinToString { it.poetize() }
                 return CodeBlock.of("%T(methods = listOf($poetizedMethods))", Service::class).toString()
@@ -198,28 +205,34 @@ sealed class IDLType {
         }
 
         object Principal : Reference() {
-            override fun toString() = "Principal"
-
+            const val text = "principal"
+            override fun toString() = text
             override fun poetize() = CodeBlock.of("%T", Principal::class).toString()
         }
     }
 
     sealed class Constructive : IDLType() {
         data class Opt(val type: IDLType) : Constructive() {
+            companion object { const val text = "opt" }
+            override fun toString() = "$text $type"
             override fun poetize() = CodeBlock.of("%T(${type.poetize()})", Opt::class).toString()
         }
 
         data class Vec(val type: IDLType) : Constructive() {
+            companion object { const val text = "vec" }
+            override fun toString() = "$text $type"
             override fun poetize() = CodeBlock.of("%T(${type.poetize()})", Vec::class).toString()
         }
 
         object Blob : Constructive() {
-            override fun toString() = "Blob"
-
+            const val text = "blob"
+            override fun toString() = text
             override fun poetize() = CodeBlock.of("%T", Blob::class).toString()
         }
 
         data class Record(val fields: List<IDLFieldType> = emptyList()) : Constructive() {
+            companion object { const val text = "record" }
+            override fun toString() = "$text ${prettyString(fields, ";")}"
             override fun poetize(): String {
                 val poetizedFields = fields.joinToString { it.poetize() }
                 return CodeBlock.of("%T(fields = listOf($poetizedFields))", Record::class).toString()
@@ -227,6 +240,8 @@ sealed class IDLType {
         }
 
         data class Variant(val fields: List<IDLFieldType> = emptyList()) : Constructive() {
+            companion object { const val text = "variant" }
+            override fun toString() = "$text ${prettyString(fields, ";")}"
             override fun poetize(): String {
                 val poetizedFields = fields.joinToString { it.poetize() }
                 return CodeBlock.of("%T(fields = listOf($poetizedFields))", Variant::class).toString()
@@ -235,150 +250,143 @@ sealed class IDLType {
     }
 
     sealed class Primitive : IDLType() {
+        abstract var text: String
+        override fun toString() = text
+        override fun poetize() = CodeBlock.of("%T", this::class).toString()
         object Natural : Primitive() {
-            override fun toString() = "Nat"
-
-            override fun poetize() = CodeBlock.of("%T", Natural::class).toString()
+            override var text = "nat"
         }
 
         object Nat8 : Primitive() {
-            override fun toString() = "Nat8"
-
-            override fun poetize() = CodeBlock.of("%T", Nat8::class).toString()
+            override var text = "nat8"
         }
 
         object Nat16 : Primitive() {
-            override fun toString() = "Nat16"
-
-            override fun poetize() = CodeBlock.of("%T", Nat16::class).toString()
+            override var text = "nat16"
         }
 
         object Nat32 : Primitive() {
-            override fun toString() = "Nat32"
-
-            override fun poetize() = CodeBlock.of("%T", Nat32::class).toString()
+            override var text = "nat32"
         }
 
         object Nat64 : Primitive() {
-            override fun toString() = "Nat64"
-
-            override fun poetize() = CodeBlock.of("%T", Nat64::class).toString()
+            override var text = "nat64"
         }
 
         object Integer : Primitive() {
-            override fun toString() = "Int"
-
-            override fun poetize() = CodeBlock.of("%T", Integer::class).toString()
+            override var text = "int"
         }
 
         object Int8 : Primitive() {
-            override fun toString() = "Int8"
-
-            override fun poetize() = CodeBlock.of("%T", Int8::class).toString()
+            override var text = "int8"
         }
 
         object Int16 : Primitive() {
-            override fun toString() = "Int16"
-
-            override fun poetize() = CodeBlock.of("%T", Int16::class).toString()
+            override var text = "int16"
         }
 
         object Int32 : Primitive() {
-            override fun toString() = "Int32"
-
-            override fun poetize() = CodeBlock.of("%T", Int32::class).toString()
+            override var text = "int32"
         }
 
         object Int64 : Primitive() {
-            override fun toString() = "Int64"
-
-            override fun poetize() = CodeBlock.of("%T", Int64::class).toString()
+            override var text = "int64"
         }
 
         object Float32 : Primitive() {
-            override fun toString() = "Float32"
-
-            override fun poetize() = CodeBlock.of("%T", Float32::class).toString()
+            override var text = "float32"
         }
 
         object Float64 : Primitive() {
-            override fun toString() = "Float64"
-
-            override fun poetize() = CodeBlock.of("%T", Float64::class).toString()
+            override var text = "float64"
         }
 
         object Bool : Primitive() {
-            override fun toString() = "Bool"
-
-            override fun poetize() = CodeBlock.of("%T", Bool::class).toString()
+            override var text = "bool"
         }
 
         object Text : Primitive() {
-            override fun toString() = "Text"
-
-            override fun poetize() = CodeBlock.of("%T", Text::class).toString()
+            override var text = "text"
         }
 
         object Null : Primitive() {
-            override fun toString() = "Null"
-
-            override fun poetize() = CodeBlock.of("%T", Null::class).toString()
+            override var text = "null"
         }
 
         object Reserved : Primitive() {
-            override fun toString() = "Reserved"
-
-            override fun poetize() = CodeBlock.of("%T", Reserved::class).toString()
+            override var text = "reserved"
         }
 
         object Empty : Primitive() {
-            override fun toString() = "Empty"
-
-            override fun poetize() = CodeBlock.of("%T", Empty::class).toString()
+            override var text = "empty"
         }
     }
 
     sealed class Other : IDLType() {
         data class Custom(val opcode: Int) : Other() {
+            val text: String = TODO("Not yet implemented")
+            override fun toString() = TODO("Not yet implemented")
             override fun poetize() = CodeBlock.of("%T($opcode)", Custom::class).toString()
         }
 
         data class Future(val opcode: Int) : Other() {
+            val text: String = TODO("Not yet implemented")
+            override fun toString() = TODO("Not yet implemented")
             override fun poetize() = CodeBlock.of("%T($opcode)", Future::class).toString()
         }
     }
 }
 
 data class IDLFieldType(val name: String?, val type: IDLType, var idx: Int) {
+    override fun toString() = "${if (name == null) "" else "$name: "}$type"
     fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()}, $idx)", IDLFieldType::class.asTypeName()).toString()
 }
 
 data class IDLArgType(val name: String?, val type: IDLType) {
+    override fun toString() = "${if (name == null) "" else "$name: "}$type"
     fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()})", IDLArgType::class.asTypeName()).toString()
 }
 
 enum class IDLFuncAnn {
     Oneway {
+        override var text = "oneway"
         override fun poetize() = CodeBlock.of("%T", Oneway::class.asTypeName()).toString()
     },
     Query {
+        override var text = "query"
         override fun poetize() = CodeBlock.of("%T", Query::class.asTypeName()).toString()
     };
-
+    abstract val text: String
+    override fun toString() = text
     abstract fun poetize(): String
 }
 
-data class IDLMethod(val name: String, val type: IDLMethodType) {
+data class IDLMethod(val name: IDLName, val type: IDLMethodType) {
+    override fun toString() = "$name: ${type.toString().replace(IDLType.Reference.Func.text, "")};"
     fun poetize() = CodeBlock.of("%T($name, ${(type as IDLType).poetize()})", IDLMethod::class.asTypeName()).toString()
 }
 
 sealed class IDLDef {
-    data class Type(val name: String, val type: IDLType) : IDLDef()
-    data class Import(val filePath: String) : IDLDef()
+    data class Type(val name: String, val type: IDLType) : IDLDef() {
+        companion object { const val text = "type" }
+        override fun toString() = "$text $name = $type;"
+    }
+    data class Import(val filePath: IDLToken.TextVal) : IDLDef() {
+        companion object { const val text = "import" }
+        override fun toString() = "$text $filePath;"
+    }
 }
 
-data class IDLActorDef(val name: String?, val type: IDLActorType)
-data class IDLProgram(val imports: List<IDLDef.Import>, val types: List<IDLDef.Type>, val actor: IDLActorDef?)
+data class IDLActor(val name: String?, val type: IDLActorType) {
+    override fun toString() = "${IDLType.Reference.Service.text} ${if (name == null) "" else "$name"}:${type.toString().replace(IDLType.Reference.Service.text, "")};"
+}
+
+data class IDLProgram(val imports: List<IDLDef.Import>, val types: List<IDLDef.Type>, val actor: IDLActor?) {
+    override fun toString() = "${prettyString(imports)}${prettyString(types)}$actor"
+    private fun <E> prettyString(items: List<E>): String {
+        return if (items.isEmpty()) "" else items.joinToString(System.lineSeparator(), "", System.lineSeparator())
+    }
+}
 
 interface IDLMethodType
 
