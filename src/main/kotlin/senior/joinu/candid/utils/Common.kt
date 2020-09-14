@@ -1,6 +1,9 @@
-package senior.joinu.candid
+package senior.joinu.candid.utils
 
+import java.io.IOException
+import java.io.OutputStream
 import java.math.BigInteger
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.*
 
@@ -13,6 +16,14 @@ fun idlHash(id: String): Int {
     }
 
     return hash.toInt()
+}
+
+fun randomBytes(size: Int): ByteArray {
+    val r = Random()
+    val bytes = ByteArray(size)
+    r.nextBytes(bytes)
+
+    return bytes
 }
 
 fun BigInteger.reverseOrder() = BigInteger(this.toBytesLE())
@@ -44,6 +55,29 @@ fun BigInteger.toUBytes(): ByteArray {
         extractedBytes.size
     )
     return extractedBytes
+}
+
+class ByteBufferBackedOutputStream : OutputStream() {
+    private val buffer = mutableListOf<Int>()
+    var out: ByteArray? = null
+
+    override fun flush() {
+        val bufSize = buffer.size + 3
+        val buf = ByteBuffer.allocate(bufSize)
+
+        buf.put(byteArrayOf(0xd9.toByte(), 0xd9.toByte(), 0xf7.toByte())) // wtf?
+        buffer.forEach { buf.put(it.toByte()) }
+        buf.rewind()
+
+        out = ByteArray(bufSize)
+        buf.get(out)
+        buffer.clear()
+    }
+
+    @Throws(IOException::class)
+    override fun write(b: Int) {
+        buffer.add(b)
+    }
 }
 
 fun ByteArray.toHex() = this.joinToString(separator = "") { it.toInt().and(0xff).toString(16).padStart(2, '0') }

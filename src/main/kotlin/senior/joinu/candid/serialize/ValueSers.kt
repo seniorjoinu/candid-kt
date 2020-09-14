@@ -1,9 +1,9 @@
 package senior.joinu.candid.serialize
 
 import com.squareup.kotlinpoet.CodeBlock
-import senior.joinu.candid.*
-import senior.joinu.candid.Leb128
-import senior.joinu.candid.Leb128BI
+import senior.joinu.candid.transpile.*
+import senior.joinu.candid.utils.Leb128
+import senior.joinu.candid.utils.Leb128BI
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets

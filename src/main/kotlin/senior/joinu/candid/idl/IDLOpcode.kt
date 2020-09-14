@@ -1,4 +1,4 @@
-package senior.joinu.candid
+package senior.joinu.candid.idl
 
 enum class IDLOpcode(val value: Int) {
     NULL(-1),

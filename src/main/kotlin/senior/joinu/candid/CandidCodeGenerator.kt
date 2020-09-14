@@ -1,6 +1,7 @@
 package senior.joinu.candid
 
 import com.github.h0tk3y.betterParse.grammar.parseToEnd
+import senior.joinu.candid.idl.IDLGrammar
 import senior.joinu.candid.transpile.KtTranspiler
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
