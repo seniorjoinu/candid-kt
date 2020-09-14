@@ -2,9 +2,15 @@ package senior.joinu.candid.transpile
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import senior.joinu.candid.*
+import senior.joinu.candid.idl.IDLFuncAnn
+import senior.joinu.candid.idl.IDLType
+import senior.joinu.candid.idl.MAGIC_PREFIX
+import senior.joinu.candid.idl.TypeTable
 import senior.joinu.candid.serialize.*
-import senior.joinu.candid.Leb128
+import senior.joinu.candid.utils.EdDSAKeyPair
+import senior.joinu.candid.utils.Leb128
+import senior.joinu.candid.utils.escapeIfNecessary
+import senior.joinu.candid.utils.poetize
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
@@ -375,9 +381,7 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
     invoke.addStatement("sendBuf.put(staticPayload)")
     serStatements.forEach { invoke.addStatement(it) }
 
-    invoke.addStatement("val sendBytes = %T(staticPayload.size + valueSizeBytes)", ByteArray::class)
-    invoke.addStatement("sendBuf.rewind()")
-    invoke.addStatement("sendBuf.get(sendBytes)")
+    invoke.addStatement("val sendBytes = sendBuf.array()", ByteArray::class)
     invoke.addStatement("")
 
     val sendFuncName = if (type.annotations.contains(IDLFuncAnn.Query)) {
@@ -386,9 +390,8 @@ fun transpileFunc(name: ClassName?, type: IDLType.Reference.Func, context: Trans
         "call"
     }
     invoke.addStatement("val receiveBytes = this.service!!.${sendFuncName}(this.funcName!!, sendBytes)")
-    invoke.addStatement("val receiveBuf = %T.allocate(receiveBytes.size)", ByteBuffer::class)
+    invoke.addStatement("val receiveBuf = %T.wrap(receiveBytes)", ByteBuffer::class)
     invoke.addStatement("receiveBuf.order(%T.LITTLE_ENDIAN)", ByteOrder::class)
-    invoke.addStatement("receiveBuf.put(receiveBytes)")
     invoke.addStatement("receiveBuf.rewind()")
     invoke.addStatement("val deserContext = %T.deserUntilM(receiveBuf)", TypeDeser::class)
 

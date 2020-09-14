@@ -1,8 +1,10 @@
 package senior.joinu.candid
 
 import com.squareup.kotlinpoet.FileSpec
+import senior.joinu.candid.idl.*
 import senior.joinu.candid.transpile.KtTranspiler
 import senior.joinu.candid.transpile.TranspileContext
+import senior.joinu.candid.utils.CommonKt
 import spock.lang.Specification
 
 /**
@@ -18,7 +20,7 @@ class IDLGrammarSpecificationBase extends Specification {
         } else if(name.isInteger()) {
             idx = name.toInteger()
         } else {
-            idx = UtilsKt.idlHash(name)
+            idx = CommonKt.idlHash(name)
         }
         return idx
     }

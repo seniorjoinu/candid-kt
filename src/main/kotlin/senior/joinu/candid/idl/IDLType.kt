@@ -1,9 +1,10 @@
-package senior.joinu.candid
+package senior.joinu.candid.idl
 
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.serialize.getTypeSerForType
 import senior.joinu.candid.transpile.prettyString
+import senior.joinu.candid.utils.Leb128
 import java.nio.ByteBuffer
 
 class TypeTable(
@@ -338,7 +339,17 @@ sealed class IDLType {
 }
 
 data class IDLFieldType(val name: String?, val type: IDLType, var idx: Int) {
-    override fun toString() = "${if (name == null) "" else "$name: "}$type"
+    override fun toString(): String {
+        // for anonymous fields
+        if (name == null) return "$type"
+
+        // for variant fields
+        if (type == IDLType.Primitive.Null) return "$name"
+
+        // for other fields
+        return "$name: $type"
+    }
+
     fun poetize() = CodeBlock.of("%T(\"$name\", ${type.poetize()}, $idx)", IDLFieldType::class.asTypeName()).toString()
 }
 
@@ -373,12 +384,17 @@ sealed class IDLDef {
     }
     data class Import(val filePath: IDLToken.TextVal) : IDLDef() {
         companion object { const val text = "import" }
-        override fun toString() = "$text $filePath;"
+
+        override fun toString() = "$text \"$filePath\";"
     }
 }
 
 data class IDLActor(val name: String?, val type: IDLActorType) {
-    override fun toString() = "${IDLType.Reference.Service.text} ${if (name == null) "" else "$name"}:${type.toString().replace(IDLType.Reference.Service.text, "")};"
+    override fun toString() = "${IDLType.Reference.Service.text} ${if (name == null) "" else "$name"}:${
+        type.toString().replace(
+            IDLType.Reference.Service.text, ""
+        )
+    };"
 }
 
 data class IDLProgram(val imports: List<IDLDef.Import>, val types: List<IDLDef.Type>, val actor: IDLActor?) {

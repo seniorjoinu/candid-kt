@@ -2,7 +2,8 @@ package senior.joinu.candid.transpile
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import senior.joinu.candid.*
+import senior.joinu.candid.idl.IDLProgram
+import senior.joinu.candid.idl.IDLType
 import senior.joinu.candid.serialize.*
 import java.math.BigInteger
 

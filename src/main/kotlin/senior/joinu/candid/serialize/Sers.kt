@@ -1,6 +1,6 @@
 package senior.joinu.candid.serialize
 
-import senior.joinu.candid.TypeTable
+import senior.joinu.candid.idl.TypeTable
 import java.nio.ByteBuffer
 
 interface Ser {

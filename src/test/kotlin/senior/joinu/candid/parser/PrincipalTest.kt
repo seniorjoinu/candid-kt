@@ -1,7 +1,7 @@
 package senior.joinu.candid.parser
 
 import org.junit.jupiter.api.Test
-import senior.joinu.candid.SimpleIDLPrincipal
+import senior.joinu.candid.transpile.SimpleIDLPrincipal
 
 class PrincipalTest {
     @Test

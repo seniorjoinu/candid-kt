@@ -1,16 +1,14 @@
 import kotlinx.coroutines.runBlocking
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.util.Base64
-import kotlin.ByteArray
-import kotlin.String
-import senior.joinu.candid.EdDSAKeyPair
-import senior.joinu.candid.SimpleIDLFunc
-import senior.joinu.candid.SimpleIDLPrincipal
-import senior.joinu.candid.SimpleIDLService
 import senior.joinu.candid.serialize.FuncValueSer
 import senior.joinu.candid.serialize.ServiceValueSer
 import senior.joinu.candid.serialize.TypeDeser
+import senior.joinu.candid.transpile.SimpleIDLFunc
+import senior.joinu.candid.transpile.SimpleIDLPrincipal
+import senior.joinu.candid.transpile.SimpleIDLService
+import senior.joinu.candid.utils.EdDSAKeyPair
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.*
 
 typealias MainActorValueSer = ServiceValueSer
 
@@ -27,17 +25,14 @@ class AnonFunc0(
         sendBuf.order(ByteOrder.LITTLE_ENDIAN)
         sendBuf.put(staticPayload)
         arg0ValueSer.ser(sendBuf, arg0)
-        val sendBytes = ByteArray(staticPayload.size + valueSizeBytes)
-        sendBuf.rewind()
-        sendBuf.get(sendBytes)
+        val sendBytes = sendBuf.array()
 
         val receiveBytes = this.service!!.call(this.funcName!!, sendBytes)
-        val receiveBuf = ByteBuffer.allocate(receiveBytes.size)
+        val receiveBuf = ByteBuffer.wrap(receiveBytes)
         receiveBuf.order(ByteOrder.LITTLE_ENDIAN)
-        receiveBuf.put(receiveBytes)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return senior.joinu.candid.serialize.TextValueSer.deser(receiveBuf) as kotlin.String
+        return senior.joinu.candid.serialize.TextValueSer.deser(receiveBuf)
     }
 
     companion object {
@@ -56,13 +51,13 @@ class MainActor(
 
 fun main() {
     runBlocking {
-        val id = SimpleIDLPrincipal.fromText("7kncf-oidaa-aaaaa-aaaaa-aaaaa-aaaaa-aaaaa-q")
-        val keyPair = EdDSAKeyPair.generateInsecure()
         val host = "http://localhost:8000"
+        val canisterId = SimpleIDLPrincipal.fromText("75hes-oqbaa-aaaaa-aaaaa-aaaaa-aaaaa-aaaaa-q")
+        val keyPair = EdDSAKeyPair.generateInsecure()
 
-        val actor = MainActor(host, id, keyPair)
+        val helloWorld = MainActor(host, canisterId, keyPair)
 
-        val response = actor.greet("joinu")
-        println(response)
+        val response = helloWorld.greet("World")
+        println(response) // Hello, World!
     }
 }

@@ -1,10 +1,11 @@
 package senior.joinu.candid
 
 import com.github.h0tk3y.betterParse.grammar.GrammarKt
+import senior.joinu.candid.idl.*
 import spock.lang.Unroll
 
 /**
- * System under specification: {@link IDLGrammar}.
+ * System under specification: {@link senior.joinu.candid.idl.IDLGrammar}.
  * @author tglaeser
  */
 class IDLGrammarSpecification extends IDLGrammarSpecificationBase {
@@ -16,17 +17,17 @@ class IDLGrammarSpecification extends IDLGrammarSpecificationBase {
             new IDLDef.Import(new IDLToken.TextVal('test.did'))
         ]
         List<IDLDef.Type> types = [
-            new IDLDef.Type('my_type', IDLType.Primitive.Nat8.INSTANCE),
-            new IDLDef.Type('List', new IDLType.Constructive.Record([fieldType('head', IDLType.Primitive.Integer.INSTANCE), fieldType('tail', new IDLType.Constructive.Opt(new IDLType.Id('List')))]) ),
-            new IDLDef.Type('f', functionAsReference([new IDLType.Id('List'), functionAsReference([IDLType.Primitive.Int32.INSTANCE], [IDLType.Primitive.Int64.INSTANCE], [])], [new IDLType.Constructive.Opt(new IDLType.Id('List'))], [])),
-            new IDLDef.Type('broker', serviceAsReference([methodWithNamedArgTypes(new IDLType.Id('find'), [new Tuple2<>('name', IDLType.Primitive.Text.INSTANCE)], [new Tuple2<>(null, serviceAsReference([method(new IDLType.Id('current'), [], [IDLType.Primitive.Nat32.INSTANCE]), method(new IDLType.Id('up'), [], [])]))])])),
-            new IDLDef.Type('nested', new IDLType.Constructive.Record([fieldType(0, IDLType.Primitive.Natural.INSTANCE), fieldType(1, IDLType.Primitive.Natural.INSTANCE), fieldType(2, new IDLType.Constructive.Record([fieldType(0, IDLType.Primitive.Natural.INSTANCE), fieldType(1, IDLType.Primitive.Nat8.INSTANCE), fieldType("0x2a", IDLType.Primitive.Natural.INSTANCE)])), fieldType(3, new IDLType.Constructive.Variant([fieldType(0, new IDLType.Id('A')), fieldType(1, new IDLType.Id('B')), fieldType(2, new IDLType.Id('C')), fieldType("0x2a", IDLType.Primitive.Null.INSTANCE)])), fieldType("40", IDLType.Primitive.Natural.INSTANCE), fieldType("42", IDLType.Primitive.Natural.INSTANCE)])),
+                new IDLDef.Type('my_type', IDLType.Primitive.Nat8.INSTANCE),
+                new IDLDef.Type('List', new IDLType.Constructive.Record([fieldType('head', IDLType.Primitive.Integer.INSTANCE), fieldType('tail', new IDLType.Constructive.Opt(new IDLType.Id('List')))])),
+                new IDLDef.Type('f', functionAsReference([new IDLType.Id('List'), functionAsReference([IDLType.Primitive.Int32.INSTANCE], [IDLType.Primitive.Int64.INSTANCE], [])], [new IDLType.Constructive.Opt(new IDLType.Id('List'))], [])),
+                new IDLDef.Type('broker', serviceAsReference([methodWithNamedArgTypes(new IDLType.Id('find'), [new Tuple2<>('name', IDLType.Primitive.Text.INSTANCE)], [new Tuple2<>(null, serviceAsReference([method(new IDLType.Id('current'), [], [IDLType.Primitive.Nat32.INSTANCE]), method(new IDLType.Id('up'), [], [])]))])])),
+                new IDLDef.Type('nested', new IDLType.Constructive.Record([fieldType(0, IDLType.Primitive.Natural.INSTANCE), fieldType(1, IDLType.Primitive.Natural.INSTANCE), fieldType(2, new IDLType.Constructive.Record([fieldType(0, IDLType.Primitive.Natural.INSTANCE), fieldType(1, IDLType.Primitive.Nat8.INSTANCE), fieldType("0x2a", IDLType.Primitive.Natural.INSTANCE)])), fieldType(3, new IDLType.Constructive.Variant([fieldType("0x2a", IDLType.Primitive.Null.INSTANCE), fieldType(0, new IDLType.Id('A')), fieldType(1, new IDLType.Id('B')), fieldType(2, new IDLType.Id('C'))])), fieldType("40", IDLType.Primitive.Natural.INSTANCE), fieldType("42", IDLType.Primitive.Natural.INSTANCE)])),
         ]
         List<IDLMethod> methods = [
-            methodWithNamedArgTypes(new IDLType.Id('f'), [new Tuple2<>('test', IDLType.Constructive.Blob.INSTANCE), new Tuple2<>(null, new IDLType.Constructive.Opt(IDLType.Primitive.Bool.INSTANCE))], [], [IDLFuncAnn.valueOf('Oneway')]),
-            method(new IDLType.Id('g'), [new IDLType.Id('my_type'), new IDLType.Id('List'), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [IDLType.Primitive.Integer.INSTANCE], [IDLFuncAnn.valueOf('Query')]),
-            method(new IDLType.Id('h'), [new IDLType.Constructive.Vec(new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE)), new IDLType.Constructive.Variant([fieldType('A', IDLType.Primitive.Natural.INSTANCE), fieldType('B', new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE))]), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [new IDLType.Constructive.Record([fieldType('0x2a', new IDLType.Constructive.Record([])), fieldType('id', IDLType.Primitive.Natural.INSTANCE)])], []),
-            new IDLMethod(new IDLType.Id('i'), new IDLType.Id('f')),
+                methodWithNamedArgTypes(new IDLType.Id('f'), [new Tuple2<>('test', IDLType.Constructive.Blob.INSTANCE), new Tuple2<>(null, new IDLType.Constructive.Opt(IDLType.Primitive.Bool.INSTANCE))], [], [IDLFuncAnn.valueOf('Oneway')]),
+                method(new IDLType.Id('g'), [new IDLType.Id('my_type'), new IDLType.Id('List'), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [IDLType.Primitive.Integer.INSTANCE], [IDLFuncAnn.valueOf('Query')]),
+                method(new IDLType.Id('h'), [new IDLType.Constructive.Vec(new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE)), new IDLType.Constructive.Variant([fieldType('A', IDLType.Primitive.Natural.INSTANCE), fieldType('B', new IDLType.Constructive.Opt(IDLType.Primitive.Text.INSTANCE))]), new IDLType.Constructive.Opt(new IDLType.Id('List'))], [new IDLType.Constructive.Record([fieldType('0x2a', new IDLType.Constructive.Record([])), fieldType('id', IDLType.Primitive.Natural.INSTANCE)])], []),
+                new IDLMethod(new IDLType.Id('i'), new IDLType.Id('f')),
         ]
         IDLProgram program = program(serviceName, methods, types, imports)
 
