@@ -83,6 +83,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pTypeDef by skip(tType) and parser { pId } and skip(
         tAssign
     ) and parser { pDataType } map { (name, type) ->
+        ids.add(name)
         IDLDef.Type(name.value, type)
     }
     private val pImportDef by skip(tImport) and parser { pUtfScalar } use {
@@ -94,6 +95,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     private val pActor: Parser<IDLActor> by skip(tService) and optional(parser { pId }) and skip(
         tColon
     ) and pActorType map { (id, type) ->
+        if (id != null) ids.add(id)
         IDLActor(id?.value, type)
     }
 
@@ -242,14 +244,14 @@ object IDLGrammar : Grammar<IDLProgram>() {
             if (field.idx == -1) field.idx = idx
         }
 
-        IDLType.Constructive.Record(fields.sortedWith(Comparator { t1, t2 -> (t1.idx.toUInt() - t2.idx.toUInt()).toInt() }))
+        IDLType.Constructive.Record(fields.sortedWith { t1, t2 -> (t1.idx.toUInt() - t2.idx.toUInt()).toInt() })
     }
     private val pVariant: Parser<IDLType.Constructive.Variant> by skip(tVariant) and pFieldTypeListBlock map { fields ->
         fields.forEachIndexed { idx, field ->
             if (field.idx == -1) field.idx = idx
         }
 
-        IDLType.Constructive.Variant(fields.sortedWith(Comparator { t1, t2 -> (t1.idx.toUInt() - t2.idx.toUInt()).toInt() }))
+        IDLType.Constructive.Variant(fields.sortedWith { t1, t2 -> (t1.idx.toUInt() - t2.idx.toUInt()).toInt() })
     }
 
     // -----------------------------REFTYPE-------------------------------
@@ -268,9 +270,7 @@ object IDLGrammar : Grammar<IDLProgram>() {
     }
     private val ids = mutableSetOf<IDLType.Id>()
     private val pId: Parser<IDLType.Id> by tId use {
-        val id = IDLType.Id(text)
-        ids.add(id)
-        id
+        IDLType.Id(text)
     }
     private val pNatDec by tDec use {
         val value = text.filterNot { it == '_' }.toInt()

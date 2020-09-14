@@ -1,11 +1,13 @@
 package senior.joinu.candid.parser
 
 import com.github.h0tk3y.betterParse.grammar.parseToEnd
+import com.tschuchort.compiletesting.KotlinCompilation
+import com.tschuchort.compiletesting.SourceFile
 import org.junit.jupiter.api.Test
 import senior.joinu.candid.idl.IDLGrammar
 import senior.joinu.candid.transpile.KtTranspiler
 
-class GrammarTest {
+class CodeGenerationTest {
     @Test
     fun `example works fine`() {
         val testCandid = """
@@ -117,12 +119,28 @@ class GrammarTest {
             }
         """.trimIndent()
 
-        val program = IDLGrammar.parseToEnd(testCandid1)
-        val ktContext = KtTranspiler.transpile(program, "", "Test.kt")
+        val dids = listOf(
+            testCandid, testCandid1, testCandid2, testCandid3, testCandid4
+        )
 
-        val fileSpec = ktContext.currentSpec.build()
+        dids.forEachIndexed { idx, did ->
+            val program = IDLGrammar.parseToEnd(did)
+            val ktContext = KtTranspiler.transpile(program, "", "Canister$idx.kt")
 
-        fileSpec.writeTo(System.out)
+            val fileSpec = ktContext.currentSpec.build()
+
+            val sb = StringBuilder()
+            fileSpec.writeTo(sb)
+
+            val source = SourceFile.kotlin("Canister$idx.kt", sb.toString())
+
+            val compiler = KotlinCompilation()
+            compiler.sources = listOf(source)
+            compiler.inheritClassPath = true
+
+            val result = compiler.compile()
+            assert(result.exitCode == KotlinCompilation.ExitCode.OK)
+        }
     }
 }
 
