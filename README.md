@@ -57,20 +57,19 @@ class MainActor(
 ) : SimpleIDLService(host, canisterId, keyPair, apiVersion) {
     val greet: AnonFunc0 = AnonFunc0("greet", this)
 }
-
-fun main() {
-    runBlocking {
-        val host = "http://localhost:8000"
-        val canisterId = SimpleIDLPrincipal.fromText("75hes-oqbaa-aaaaa-aaaaa-aaaaa-aaaaa-aaaaa-q")
-        val keyPair = EdDSAKeyPair.generateInsecure()
-        
-        val helloWorld = MainActor(host, canisterId, keyPair)
-        
-        val response = helloWorld.greet("World")
-        println(response) // Hello, World!
-    }
-}
 ```
+which we then can use to interact with our deployed canister
+```
+val host = "http://localhost:8000"
+val canisterId = SimpleIDLPrincipal.fromText("75hes-oqbaa-aaaaa-aaaaa-aaaaa-aaaaa-aaaaa-q")
+val keyPair = EdDSAKeyPair.generateInsecure()
+
+val helloWorld = MainActor(host, canisterId, keyPair)
+
+val response = helloWorld.greet("World")
+println(response) // Hello, World!    
+```
+
 
 ### Pros
 * Idiomatic Kotlin
