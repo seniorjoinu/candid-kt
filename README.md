@@ -59,7 +59,7 @@ class MainActor(
 }
 ```
 which we then can use to interact with our deployed canister
-```
+```kotlin
 val host = "http://localhost:8000"
 val canisterId = SimpleIDLPrincipal.fromText("75hes-oqbaa-aaaaa-aaaaa-aaaaa-aaaaa-aaaaa-q")
 val keyPair = EdDSAKeyPair.generateInsecure()
