@@ -5,6 +5,7 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import senior.joinu.candid.idl.IDLProgram
 import senior.joinu.candid.idl.IDLType
 import senior.joinu.candid.serialize.*
+import senior.joinu.candid.utils.CodeBlock
 import java.math.BigInteger
 
 object KtTranspiler {

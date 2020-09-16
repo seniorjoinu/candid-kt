@@ -1,5 +1,6 @@
 package senior.joinu.candid.utils
 
+import com.squareup.kotlinpoet.CodeBlock
 import java.io.IOException
 import java.io.OutputStream
 import java.math.BigInteger
@@ -7,6 +8,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.*
 
+typealias CodeBlock = CodeBlock
 
 fun idlHash(id: String): Int {
     val bytes = id.toByteArray(StandardCharsets.UTF_8)

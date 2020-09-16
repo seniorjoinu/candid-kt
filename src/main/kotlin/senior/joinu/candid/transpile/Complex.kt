@@ -7,6 +7,7 @@ import senior.joinu.candid.idl.IDLType
 import senior.joinu.candid.idl.MAGIC_PREFIX
 import senior.joinu.candid.idl.TypeTable
 import senior.joinu.candid.serialize.*
+import senior.joinu.candid.utils.CodeBlock
 import senior.joinu.candid.utils.EdDSAKeyPair
 import senior.joinu.candid.utils.Leb128
 import senior.joinu.candid.utils.escapeIfNecessary
