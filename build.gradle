@@ -33,6 +33,23 @@ dependencies {
     testImplementation 'com.github.tschuchortdev:kotlin-compile-testing:1.2.10'
 }
 
+jar {
+    from {
+        configurations.default
+                .filter {
+                    it.name.startsWith("kotlinpoet") ||
+                    it.name.startsWith("better-parse") ||
+                    it.name.startsWith("eddsa") ||
+                    it.name.startsWith("cbor") ||
+                    it.name.startsWith("commons-codec") ||
+                    it.name.startsWith("fuel")
+                }
+                .collect {
+                    it.isDirectory() ? it : zipTree(it)
+                }
+    }
+}
+
 compileKotlin {
     kotlinOptions.jvmTarget = "1.8"
 }
