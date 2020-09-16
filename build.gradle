@@ -22,8 +22,9 @@ dependencies {
     implementation 'co.nstant.in:cbor:0.9'
     implementation 'net.i2p.crypto:eddsa:0.3.0'
 
-    compileOnly('com.github.square:kotlinpoet:1.6.0')
-    compileOnly('com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0')
+    api 'com.github.square:kotlinpoet:1.6.0'
+
+    implementation('com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0') { transitive = true }
 
     testImplementation(
         'org.junit.jupiter:junit-jupiter:5.6.2',
@@ -34,10 +35,9 @@ dependencies {
 
 jar {
     from {
-        configurations.compileOnly
+        configurations.default
                 .filter {
                     it.name.startsWith("better-parse")
-                    it.name.startsWith("kotlinpoet")
                 }
                 .collect {
                     it.isDirectory() ? it : zipTree(it)
