@@ -52,7 +52,10 @@ class TypeTable(
             is IDLType.Id -> {
                 if (!result.labels.containsKey(type)) {
                     val idx = labels[type]!!
-                    val t = registry[idx]
+
+                    val t = if (idx < 0) IDLType.Primitive.primitiveByOpcode(IDLOpcode.fromInt(idx)!!)
+                    else registry[idx]
+
                     result.registerTypeWithLabel(type, t)
                     copyLabelsForType(t, result)
                 }
@@ -144,6 +147,12 @@ class TypeTable(
             labels[label] = oldIdx
 
             return oldIdx
+        }
+
+        if (type is IDLType.Primitive) {
+            labels[label] = type.opcode.value
+
+            return type.opcode.value
         }
 
         val idx = registry.lastIndex + 1
@@ -251,88 +260,132 @@ sealed class IDLType {
     }
 
     sealed class Primitive : IDLType() {
+        abstract val opcode: IDLOpcode
         abstract var text: String
         override fun toString() = text
         override fun poetize() = CodeBlock.of("%T", this::class).toString()
+
+        companion object {
+            fun primitiveByOpcode(opcode: IDLOpcode): Primitive {
+                return when (opcode) {
+                    IDLOpcode.EMPTY -> Empty
+                    IDLOpcode.RESERVED -> Reserved
+                    IDLOpcode.FLOAT64 -> Float64
+                    IDLOpcode.FLOAT32 -> Float32
+                    IDLOpcode.BOOL -> Bool
+                    IDLOpcode.NULL -> Null
+                    IDLOpcode.TEXT -> Text
+                    IDLOpcode.NAT -> Natural
+                    IDLOpcode.NAT8 -> Nat8
+                    IDLOpcode.NAT16 -> Nat16
+                    IDLOpcode.NAT32 -> Nat32
+                    IDLOpcode.NAT64 -> Nat64
+                    IDLOpcode.INT -> Integer
+                    IDLOpcode.INT8 -> Int8
+                    IDLOpcode.INT16 -> Int16
+                    IDLOpcode.INT32 -> Int32
+                    IDLOpcode.INT64 -> Int64
+                    else -> error("Not primitive opcode")
+                }
+            }
+        }
+
         object Natural : Primitive() {
             override var text = "nat"
+            override val opcode = IDLOpcode.NAT
         }
 
         object Nat8 : Primitive() {
             override var text = "nat8"
+            override val opcode = IDLOpcode.NAT8
         }
 
         object Nat16 : Primitive() {
             override var text = "nat16"
+            override val opcode = IDLOpcode.NAT16
         }
 
         object Nat32 : Primitive() {
             override var text = "nat32"
+            override val opcode = IDLOpcode.NAT32
         }
 
         object Nat64 : Primitive() {
             override var text = "nat64"
+            override val opcode = IDLOpcode.NAT64
         }
 
         object Integer : Primitive() {
             override var text = "int"
+            override val opcode = IDLOpcode.INT
         }
 
         object Int8 : Primitive() {
             override var text = "int8"
+            override val opcode = IDLOpcode.INT8
         }
 
         object Int16 : Primitive() {
             override var text = "int16"
+            override val opcode = IDLOpcode.INT16
         }
 
         object Int32 : Primitive() {
             override var text = "int32"
+            override val opcode = IDLOpcode.INT32
         }
 
         object Int64 : Primitive() {
             override var text = "int64"
+            override val opcode = IDLOpcode.INT64
         }
 
         object Float32 : Primitive() {
             override var text = "float32"
+            override val opcode = IDLOpcode.FLOAT32
         }
 
         object Float64 : Primitive() {
             override var text = "float64"
+            override val opcode = IDLOpcode.FLOAT64
         }
 
         object Bool : Primitive() {
             override var text = "bool"
+            override val opcode = IDLOpcode.BOOL
         }
 
         object Text : Primitive() {
             override var text = "text"
+            override val opcode = IDLOpcode.TEXT
         }
 
         object Null : Primitive() {
             override var text = "null"
+            override val opcode = IDLOpcode.NULL
         }
 
         object Reserved : Primitive() {
             override var text = "reserved"
+            override val opcode = IDLOpcode.RESERVED
         }
 
         object Empty : Primitive() {
             override var text = "empty"
+            override val opcode = IDLOpcode.EMPTY
         }
     }
 
     sealed class Other : IDLType() {
         data class Custom(val opcode: Int) : Other() {
-            val text: String = TODO("Not yet implemented")
-            override fun toString() = TODO("Not yet implemented")
+            val text: String = "<CUSTOM>"
+            override fun toString() = text
             override fun poetize() = CodeBlock.of("%T($opcode)", Custom::class).toString()
         }
 
         data class Future(val opcode: Int) : Other() {
-            val text: String = TODO("Not yet implemented")
-            override fun toString() = TODO("Not yet implemented")
+            val text: String = "<FUTURE>"
+            override fun toString() = text
             override fun poetize() = CodeBlock.of("%T($opcode)", Future::class).toString()
         }
     }

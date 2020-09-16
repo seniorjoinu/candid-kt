@@ -42,7 +42,7 @@ object KtTranspiler {
         }
 
         if (program.actor != null) {
-            val name = program.actor.name ?: "MainActor"
+            val name = program.actor.name ?: context.fileName.split(".").first().capitalize() + "Service"
             transpileTypeAndValueSer(program.actor.type as IDLType, context, ClassName(context.packageName, name))
         }
 
