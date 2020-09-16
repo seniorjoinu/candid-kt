@@ -4,6 +4,7 @@ import com.github.h0tk3y.betterParse.grammar.parseToEnd
 import com.squareup.kotlinpoet.FileSpec
 import senior.joinu.candid.idl.IDLGrammar
 import senior.joinu.candid.transpile.KtTranspiler
+import java.io.File
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
@@ -23,7 +24,33 @@ object CandidCodeGenerator {
         ) : Source()
     }
 
-    fun generateFor(
+    fun generate(
+        input: Source,
+        file: File,
+        genPackage: String = "",
+    ) {
+        generateFor(input, genPackage).writeTo(file)
+    }
+
+    fun generate(
+        input: Source,
+        file: Path,
+        genPackage: String = "",
+    ) {
+        generateFor(input, genPackage).writeTo(file)
+    }
+
+    fun generate(
+        input: Source,
+        genPackage: String = "",
+    ): String {
+        val sb = StringBuilder()
+        generateFor(input, genPackage).writeTo(sb)
+
+        return sb.toString()
+    }
+
+    internal fun generateFor(
         input: Source,
         genPackage: String = ""
     ): FileSpec {
