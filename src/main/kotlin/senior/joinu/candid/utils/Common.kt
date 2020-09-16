@@ -11,7 +11,7 @@ import java.util.*
 typealias CodeBlock = CodeBlock
 
 object Code {
-    fun of(format: String, vararg args: Any?) = CodeBlock.of(format, args)
+    fun of(format: String, vararg args: Any?) = CodeBlock.of(format, args).toString()
 }
 
 fun idlHash(id: String): Int {

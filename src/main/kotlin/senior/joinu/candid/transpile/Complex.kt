@@ -112,7 +112,7 @@ fun transpileRecord(
     val poetizeFunc = FunSpec.builder("poetize")
         .addModifiers(KModifier.OVERRIDE)
         .returns(String::class)
-        .addStatement("return %T.of(%S, ${serName.simpleName}::class).toString()", Code::class, "%T")
+        .addStatement("return %T.of(%S, ${serName.simpleName}::class)", Code::class, "%T")
     serBuilder.addFunction(poetizeFunc.build())
 
     context.currentSpec.addType(recordBuilder.build())
@@ -258,7 +258,7 @@ fun transpileVariant(
     val poetizeFunc = FunSpec.builder("poetize")
         .addModifiers(KModifier.OVERRIDE)
         .returns(String::class)
-        .addStatement("return %T.of(%S, ${variantSuperValueSerName}::class).toString()", Code::class, "%T")
+        .addStatement("return %T.of(%S, ${variantSuperValueSerName}::class)", Code::class, "%T")
     variantSuperValueSerBuilder.addFunction(poetizeFunc.build())
 
     context.currentSpec.addType(variantSuperBuilder.build())
