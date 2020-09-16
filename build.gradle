@@ -17,14 +17,13 @@ repositories {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-    implementation 'com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0'
-    implementation 'co.nstant.in:cbor:0.9'
-    implementation 'commons-codec:commons-codec:1.15'
-    implementation 'com.github.kittinunf.fuel:fuel:2.2.3'
-    implementation 'com.github.kittinunf.fuel:fuel-coroutines:2.2.3'
-
-    api 'net.i2p.crypto:eddsa:0.3.0'
-    api 'com.github.square:kotlinpoet:1.6.0'
+    implementation('com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0') { transitive = true }
+    implementation('co.nstant.in:cbor:0.9') { transitive = true }
+    implementation('commons-codec:commons-codec:1.15') { transitive = true }
+    implementation('com.github.kittinunf.fuel:fuel:2.2.3') { transitive = true }
+    implementation('com.github.kittinunf.fuel:fuel-coroutines:2.2.3') { transitive = true }
+    implementation('net.i2p.crypto:eddsa:0.3.0') { transitive = true }
+    implementation('com.github.square:kotlinpoet:1.6.0') { transitive = true }
 
     testImplementation(
         'org.junit.jupiter:junit-jupiter:5.6.2',
@@ -33,22 +32,22 @@ dependencies {
     testImplementation 'com.github.tschuchortdev:kotlin-compile-testing:1.2.10'
 }
 
-//jar {
-//    from {
-//        configurations.default
-//                .filter {
-//                    it.name.startsWith("kotlinpoet") ||
-//                    it.name.startsWith("better-parse") ||
-//                    it.name.startsWith("eddsa") ||
-//                    it.name.startsWith("cbor") ||
-//                    it.name.startsWith("commons-codec") ||
-//                    it.name.startsWith("fuel")
-//                }
-//                .collect {
-//                    it.isDirectory() ? it : zipTree(it)
-//                }
-//    }
-//}
+jar {
+    from {
+        configurations.default
+                .filter {
+                    it.name.startsWith("kotlinpoet") ||
+                    it.name.startsWith("better-parse") ||
+                    it.name.startsWith("eddsa") ||
+                    it.name.startsWith("cbor") ||
+                    it.name.startsWith("commons-codec") ||
+                    it.name.startsWith("fuel")
+                }
+                .collect {
+                    it.isDirectory() ? it : zipTree(it)
+                }
+    }
+}
 
 compileKotlin {
     kotlinOptions.jvmTarget = "1.8"
