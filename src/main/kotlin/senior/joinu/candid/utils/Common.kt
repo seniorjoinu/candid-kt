@@ -10,6 +10,10 @@ import java.util.*
 
 typealias CodeBlock = CodeBlock
 
+object Code {
+    fun of(format: String, vararg args: Any?) = CodeBlock.of(format, args)
+}
+
 fun idlHash(id: String): Int {
     val bytes = id.toByteArray(StandardCharsets.UTF_8)
     var hash = 0L
