@@ -385,7 +385,7 @@ sealed class IDLDef {
     data class Import(val filePath: IDLToken.TextVal) : IDLDef() {
         companion object { const val text = "import" }
 
-        override fun toString() = "$text \"$filePath\";"
+        override fun toString() = "$text $filePath;"
     }
 }
 
@@ -394,7 +394,7 @@ data class IDLActor(val name: String?, val type: IDLActorType) {
         type.toString().replace(
             IDLType.Reference.Service.text, ""
         )
-    };"
+    }"
 }
 
 data class IDLProgram(val imports: List<IDLDef.Import>, val types: List<IDLDef.Type>, val actor: IDLActor?) {

@@ -3,6 +3,7 @@ package senior.joinu.candid.transpile
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import senior.joinu.candid.idl.IDLFuncAnn
+import senior.joinu.candid.idl.IDLToken
 import senior.joinu.candid.idl.IDLType
 import senior.joinu.candid.idl.MAGIC_PREFIX
 import senior.joinu.candid.idl.TypeTable
@@ -433,8 +434,10 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     type.methods.forEach { (methodName, methodType) ->
         val (methodClassName, _) = KtTranspiler.transpileTypeAndValueSer(methodType as IDLType, context)
 
-        val methodProp = PropertySpec.builder(methodName.toString(), methodClassName)
-            .initializer("%T(\"$methodName\", this)", methodClassName)
+        val nameStr = if (methodName is IDLToken.TextVal) methodName.toString().substring(1, methodName.toString().length - 1) else methodName.toString()
+
+        val methodProp = PropertySpec.builder(nameStr, methodClassName)
+            .initializer("%T(\"$nameStr\", this)", methodClassName)
         actorClassBuilder.addProperty(methodProp.build())
     }
 
