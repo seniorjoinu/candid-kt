@@ -1,9 +1,9 @@
 package senior.joinu.candid.idl
 
-import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.asTypeName
 import senior.joinu.candid.serialize.getTypeSerForType
 import senior.joinu.candid.transpile.prettyString
+import senior.joinu.candid.utils.CodeBlock
 import senior.joinu.candid.utils.Leb128
 import java.nio.ByteBuffer
 
