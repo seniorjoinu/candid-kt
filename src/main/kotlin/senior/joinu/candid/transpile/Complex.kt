@@ -7,6 +7,7 @@ import senior.joinu.candid.idl.IDLType
 import senior.joinu.candid.idl.MAGIC_PREFIX
 import senior.joinu.candid.idl.TypeTable
 import senior.joinu.candid.serialize.*
+import senior.joinu.candid.utils.Code
 import senior.joinu.candid.utils.CodeBlock
 import senior.joinu.candid.utils.EdDSAKeyPair
 import senior.joinu.candid.utils.Leb128
@@ -110,7 +111,7 @@ fun transpileRecord(
     val poetizeFunc = FunSpec.builder("poetize")
         .addModifiers(KModifier.OVERRIDE)
         .returns(String::class)
-        .addStatement("return %T.of(%S, ${serName.simpleName}::class).toString()", CodeBlock::class, "%T")
+        .addStatement("return %T.of(%S, ${serName.simpleName}::class).toString()", Code::class, "%T")
     serBuilder.addFunction(poetizeFunc.build())
 
     context.currentSpec.addType(recordBuilder.build())
@@ -256,7 +257,7 @@ fun transpileVariant(
     val poetizeFunc = FunSpec.builder("poetize")
         .addModifiers(KModifier.OVERRIDE)
         .returns(String::class)
-        .addStatement("return %T.of(%S, ${variantSuperValueSerName}::class).toString()", CodeBlock::class, "%T")
+        .addStatement("return %T.of(%S, ${variantSuperValueSerName}::class).toString()", Code::class, "%T")
     variantSuperValueSerBuilder.addFunction(poetizeFunc.build())
 
     context.currentSpec.addType(variantSuperBuilder.build())
