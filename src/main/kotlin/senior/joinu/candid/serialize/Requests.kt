@@ -139,7 +139,7 @@ sealed class ICRequest {
     abstract fun toCBOR(name: String, builder: MapBuilder<CborBuilder>)
     abstract fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest
 
-    data class ICCommonRequest(
+    data class Submit(
         val requestType: IDLFuncRequestType,
         val canisterId: SimpleIDLPrincipal,
         val methodName: String,
@@ -181,7 +181,7 @@ sealed class ICRequest {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
 
-            other as ICCommonRequest
+            other as Submit
 
             if (requestType != other.requestType) return false
             if (canisterId != other.canisterId) return false
@@ -204,21 +204,94 @@ sealed class ICRequest {
         }
     }
 
-    data class ICStatusRequest(
-        val requestId: RequestId,
-        val requestType: IDLFuncRequestType = IDLFuncRequestType.RequestStatus
-    ) : ICRequest() {
-        override fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
-            val sign = signInsecure(keyPair.priv, requestId.prefixed)
+    sealed class Read : ICRequest() {
+        data class Query(
+            val canisterId: SimpleIDLPrincipal,
+            val methodName: String,
+            val arg: ByteArray,
+            val sender: SimpleIDLPrincipal
+        ) : Read() {
+            val requestType: IDLFuncRequestType = IDLFuncRequestType.Query
 
-            return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
+            val requestId: RequestId by lazy {
+                val traversed = listOf(
+                    Pair(hash("arg"), hash(arg)),
+                    Pair(hash("canister_id"), hash(canisterId.id!!)),
+                    Pair(hash("method_name"), hash(methodName)),
+                    Pair(hash("request_type"), hash(requestType.value)),
+                    Pair(hash("sender"), hash(sender.id!!))
+                )
+
+                RequestId.fromHashedFields(traversed)
+            }
+
+            override fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
+                val sign = signInsecure(keyPair.priv, requestId.prefixed)
+
+                return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
+            }
+
+            override fun toCBOR(name: String, builder: MapBuilder<CborBuilder>) {
+                builder.putMap(name)
+                    .put("arg", arg)
+                    .put("canister_id", canisterId.id!!)
+                    .put("method_name", methodName)
+                    .put("request_type", requestType.value)
+                    .put("sender", sender.id!!)
+                    .end()
+            }
+
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as Submit
+
+                if (requestType != other.requestType) return false
+                if (canisterId != other.canisterId) return false
+                if (methodName != other.methodName) return false
+                if (!arg.contentEquals(other.arg)) return false
+                if (sender != other.sender) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = requestType.hashCode()
+                result = 31 * result + canisterId.hashCode()
+                result = 31 * result + methodName.hashCode()
+                result = 31 * result + arg.contentHashCode()
+                result = 31 * result + sender.hashCode()
+                return result
+            }
         }
 
-        override fun toCBOR(name: String, builder: MapBuilder<CborBuilder>) {
-            builder.putMap(name)
-                .put("request_id", requestId.plain)
-                .put("request_type", requestType.value)
-                .end()
+        data class RequestStatus(
+            val requestId: RequestId
+        ) : Read() {
+            val requestType: IDLFuncRequestType = IDLFuncRequestType.RequestStatus
+
+            val selfRequestId: RequestId by lazy {
+                val traversed = listOf(
+                    Pair(hash("request_type"), hash(requestType.value)),
+                    Pair(hash("request_id"), hash(requestId.plain))
+                )
+
+                RequestId.fromHashedFields(traversed)
+            }
+
+            override fun authenticate(keyPair: EdDSAKeyPair): AuthenticatedICRequest {
+                val sign = signInsecure(keyPair.priv, selfRequestId.prefixed)
+
+                return AuthenticatedICRequest(this, keyPair.pub.abyte, sign)
+            }
+
+            override fun toCBOR(name: String, builder: MapBuilder<CborBuilder>) {
+                builder.putMap(name)
+                    .put("request_id", requestId.plain)
+                    .put("request_type", requestType.value)
+                    .end()
+            }
         }
     }
 }

@@ -1,34 +1,15 @@
-<img src="https://github.com/seniorjoinu/candid-kt/blob/master/logo.png?raw=true" align="left" width="100%" >
+import kotlinx.coroutines.runBlocking
+import senior.joinu.candid.serialize.*
+import senior.joinu.candid.transpile.SimpleIDLFunc
+import senior.joinu.candid.transpile.SimpleIDLPrincipal
+import senior.joinu.candid.transpile.SimpleIDLService
+import senior.joinu.candid.utils.Code
+import senior.joinu.candid.utils.EdDSAKeyPair
+import java.math.BigInteger
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.*
 
-[![Release](https://jitpack.io/v/seniorjoinu/candid-kt.svg?style=flat-square)](https://jitpack.io/#seniorjoinu/candid-kt)
-<img src="https://img.shields.io/badge/dfx-0.6.7-blue?style=flat-square"/>
-<img src="https://img.shields.io/badge/kotlin-1.4-blue?style=flat-square"/>
-<img src="https://img.shields.io/badge/android-26+-blue?style=flat-square"/>
-
-### Candid-kt
-Generates client code for your canisters
-
-### Usage
-
-Use [the gradle plugin](https://github.com/seniorjoinu/candid-kt-gradle-plugin) to generate Kotlin code out of candid code.
-
-For example, this candid code
-```
-type Phone = nat;
-type Name = text;
-type Entry = 
- record {
-   description: text;
-   name: Name;
-   phone: Phone;
- };
-service : {
-  insert: (Name, text, Phone) -> ();
-  lookup: (Name) -> (opt Entry) query;
-}
-```
-would generate this Kotlin code
-```kotlin
 typealias Phone = BigInteger
 
 val PhoneValueSer: ValueSer<BigInteger> = NatValueSer
@@ -60,8 +41,10 @@ object EntryValueSer : ValueSer<Entry> {
         this.phoneValueSer.ser(buf, value.phone)
     }
 
-    override fun deser(buf: ByteBuffer): Entry = Entry(this.nameValueSer.deser(buf),
-        this.descriptionValueSer.deser(buf), this.phoneValueSer.deser(buf))
+    override fun deser(buf: ByteBuffer): Entry = Entry(
+        this.nameValueSer.deser(buf),
+        this.descriptionValueSer.deser(buf), this.phoneValueSer.deser(buf)
+    )
 
     override fun poetize(): String = Code.of("%T", EntryValueSer::class)
 }
@@ -124,7 +107,7 @@ class AnonFunc1(
         receiveBuf.order(ByteOrder.LITTLE_ENDIAN)
         receiveBuf.rewind()
         val deserContext = TypeDeser.deserUntilM(receiveBuf)
-        return senior.joinu.candid.serialize.OptValueSer( EntryValueSer ).deser(receiveBuf) as Entry?
+        return senior.joinu.candid.serialize.OptValueSer(EntryValueSer).deser(receiveBuf)
     }
 
     companion object {
@@ -142,52 +125,18 @@ class PhonebookService(
 
     val lookup: AnonFunc1 = AnonFunc1("lookup", this)
 }
-```
-which we then can use to interact with our deployed canister
-```kotlin
-val host = "http://localhost:8000"
-val keys = EdDSAKeyPair.generateInsecure()
-val canisterId = "75hes-oqbaa-aaaaa-aaaaa-aaaaa-aaaaa-aaaaa-q"
 
-val phonebook = PhonebookService(host, SimpleIDLPrincipal.fromText(canisterId), keys)
+fun main() {
+    runBlocking {
+        val host = "http://localhost:8000"
+        val keys = EdDSAKeyPair.generateInsecure()
+        val canisterId = "75hes-oqbaa-aaaaa-aaaaa-aaaaa-aaaaa-aaaaa-q"
 
-phonebook.insert("test", "test desc", BigInteger("12345"))
-val entry = phonebook.lookup("test")
+        val phonebook = PhonebookService(host, SimpleIDLPrincipal.fromText(canisterId), keys)
 
-check(entry != null) { "Entry not found" } 
-```
+        phonebook.insert("test", "test desc", BigInteger("12345"))
+        val entry = phonebook.lookup("test")
 
-
-### Pros
-* Idiomatic Kotlin
-* Complete type-safety
-* Asynchronous io with coroutines
-* Reflectionless single-allocation (de)serialization
-
-### Cons
-* Unstable
-
-### Type conversion rules
-| IDL | Kotlin |
-| --- | --- |
-| type T = "existing type" | typealias T = "existing type" |
-| int, nat | `BigInteger` |
-| int8, nat8 | `Byte` |
-| int16, nat16 | `Short` |
-| int32, nat32 | `Int` |
-| int64, nat64 | `Long` |
-| float32 | `Float` |
-| float64 | `Double` |
-| bool | `Boolean` |
-| text | `String` |
-| null | `Null` object |
-| reserved | `Reserved` object |
-| empty | `Empty` object |
-| opt T | `T?` |
-| vec T | `List<T>` |
-| type T = record { a: T1, b: T2 } | `data class T(val a: T1, val b: T2)` |
-| type T = variant { A, B: T1 } | `sealed class T { data class A: T(); data class B(val value: T1): T() }` |
-| type T = func (T1) -> T2 | `class T { suspend operator fun invoke(arg0: T1): T2 }` |
-| type T = service { a: SomeFunc } | `class T { val a: SomeFunc }` |
-| principal | `Principal` class |
-Unnamed IDL types are transpiled into anonymous Kotlin types.
+        assert(entry != null) { "Entry not found" }
+    }
+}

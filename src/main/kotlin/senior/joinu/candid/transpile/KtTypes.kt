@@ -20,7 +20,7 @@ open class SimpleIDLService(
     var pollingInterval: Long = 100
 ) {
     suspend fun call(funcName: String, arg: ByteArray): ByteArray {
-        val req = ICRequest.ICCommonRequest(
+        val req = ICRequest.Submit(
             IDLFuncRequestType.Call,
             canisterId!!,
             funcName,
@@ -46,8 +46,7 @@ open class SimpleIDLService(
     }
 
     suspend fun query(funcName: String, arg: ByteArray): ByteArray {
-        val req = ICRequest.ICCommonRequest(
-            IDLFuncRequestType.Query,
+        val req = ICRequest.Read.Query(
             canisterId!!,
             funcName,
             arg,
@@ -64,13 +63,13 @@ open class SimpleIDLService(
     }
 
     suspend fun requestStatus(requestId: RequestId): ICStatusResponse {
-        val req = ICRequest.ICStatusRequest(requestId)
+        val req = ICRequest.Read.RequestStatus(requestId)
         val responseBody = read(req)
 
         return ICStatusResponse.fromCBORBytes(responseBody)
     }
 
-    suspend fun submit(req: ICRequest.ICCommonRequest): RequestId {
+    suspend fun submit(req: ICRequest.Submit): RequestId {
         val authReq = req.authenticate(keyPair!!)
         val body = authReq.cbor()
 
@@ -87,7 +86,7 @@ open class SimpleIDLService(
         return req.requestId
     }
 
-    suspend fun read(req: ICRequest): ByteArray {
+    suspend fun read(req: ICRequest.Read): ByteArray {
         val authReq = req.authenticate(keyPair!!)
         val body = authReq.cbor()
 

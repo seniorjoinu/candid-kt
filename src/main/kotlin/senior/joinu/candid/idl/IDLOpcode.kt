@@ -24,7 +24,11 @@ enum class IDLOpcode(val value: Int) {
     VARIANT(-21),
     FUNC(-22),
     SERVICE(-23),
-    PRINCIPAL(-24)
+    PRINCIPAL(-24);
+
+    companion object {
+        fun fromInt(value: Int) = IDLOpcode.values().find { it.value == value }
+    }
 }
 
 val MAGIC_PREFIX = byteArrayOf('D'.toByte(), 'I'.toByte(), 'D'.toByte(), 'L'.toByte())
