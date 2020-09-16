@@ -250,7 +250,7 @@ sealed class ICStatusResponse {
                     val rejectCode = responseMap[UnicodeString("reject_code")] as Number
                     val rejectMessage = responseMap[UnicodeString("reject_message")] as UnicodeString
 
-                    Rejected(rejectCode.value.intValueExact(), rejectMessage.string)
+                    Rejected(rejectCode.value.toInt(), rejectMessage.string)
                 }
                 else -> throw RuntimeException("Unknown ICReply type")
             }
