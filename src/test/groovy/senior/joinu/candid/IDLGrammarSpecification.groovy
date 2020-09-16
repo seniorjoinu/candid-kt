@@ -21,7 +21,7 @@ class IDLGrammarSpecification extends IDLGrammarSpecificationBase {
                 new IDLDef.Type('List', new IDLType.Constructive.Record([fieldType('head', IDLType.Primitive.Integer.INSTANCE), fieldType('tail', new IDLType.Constructive.Opt(new IDLType.Id('List')))])),
                 new IDLDef.Type('f', functionAsReference([new IDLType.Id('List'), functionAsReference([IDLType.Primitive.Int32.INSTANCE], [IDLType.Primitive.Int64.INSTANCE], [])], [new IDLType.Constructive.Opt(new IDLType.Id('List'))], [])),
                 new IDLDef.Type('broker', serviceAsReference([methodWithNamedArgTypes(new IDLType.Id('find'), [new Tuple2<>('name', IDLType.Primitive.Text.INSTANCE)], [new Tuple2<>(null, serviceAsReference([method(new IDLType.Id('current'), [], [IDLType.Primitive.Nat32.INSTANCE]), method(new IDLType.Id('up'), [], [])]))])])),
-                new IDLDef.Type('nested', new IDLType.Constructive.Record([fieldType(0, IDLType.Primitive.Natural.INSTANCE), fieldType(1, IDLType.Primitive.Natural.INSTANCE), fieldType(2, new IDLType.Constructive.Record([fieldType(0, IDLType.Primitive.Natural.INSTANCE), fieldType(1, IDLType.Primitive.Nat8.INSTANCE), fieldType("0x2a", IDLType.Primitive.Natural.INSTANCE)])), fieldType(3, new IDLType.Constructive.Variant([fieldType("0x2a", IDLType.Primitive.Null.INSTANCE), fieldType(0, new IDLType.Id('A')), fieldType(1, new IDLType.Id('B')), fieldType(2, new IDLType.Id('C'))])), fieldType("40", IDLType.Primitive.Natural.INSTANCE), fieldType("42", IDLType.Primitive.Natural.INSTANCE)])),
+                new IDLDef.Type('nested', new IDLType.Constructive.Record([fieldType(0, IDLType.Primitive.Natural.INSTANCE), fieldType(1, IDLType.Primitive.Natural.INSTANCE), fieldType(2, new IDLType.Constructive.Record([fieldType(0, IDLType.Primitive.Natural.INSTANCE), fieldType(1, IDLType.Primitive.Nat8.INSTANCE), fieldType("0x2a", IDLType.Primitive.Natural.INSTANCE)])), fieldType(3, new IDLType.Constructive.Variant([fieldType("0x2a", IDLType.Primitive.Null.INSTANCE), fieldType('A', IDLType.Primitive.Null.INSTANCE), fieldType('B', IDLType.Primitive.Null.INSTANCE), fieldType('C', IDLType.Primitive.Null.INSTANCE)])), fieldType("40", IDLType.Primitive.Natural.INSTANCE), fieldType("42", IDLType.Primitive.Natural.INSTANCE)])),
         ]
         List<IDLMethod> methods = [
                 methodWithNamedArgTypes(new IDLType.Id('f'), [new Tuple2<>('test', IDLType.Constructive.Blob.INSTANCE), new Tuple2<>(null, new IDLType.Constructive.Opt(IDLType.Primitive.Bool.INSTANCE))], [], [IDLFuncAnn.valueOf('Oneway')]),
@@ -44,7 +44,7 @@ class IDLGrammarSpecification extends IDLGrammarSpecificationBase {
 
     @Unroll def 'positive single service #methodName'() {
         given: 'a test fixture'
-        IDLProgram program = program([method(new IDLToken.TextVal(methodName), arguments, results)])
+        IDLProgram program = program([method(new IDLType.Id(methodName), arguments, results)])
 
         when: 'the Kotlin source is generated from the IDL'
         IDLProgram result = GrammarKt.parseToEnd(IDLGrammar.INSTANCE, program.toString())
