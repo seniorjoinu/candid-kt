@@ -34,7 +34,7 @@ dependencies {
 
 jar {
     from {
-        configurations.default
+        configurations.compileOnly
                 .filter {
                     it.name.startsWith("better-parse")
                     it.name.startsWith("kotlinpoet")
