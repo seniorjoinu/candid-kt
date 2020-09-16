@@ -19,10 +19,10 @@ dependencies {
     implementation 'commons-codec:commons-codec:1.15'
     implementation 'com.github.kittinunf.fuel:fuel:2.2.3'
     implementation 'com.github.kittinunf.fuel:fuel-coroutines:2.2.3'
-    implementation 'com.github.square:kotlinpoet:1.6.0'
     implementation 'co.nstant.in:cbor:0.9'
     implementation 'net.i2p.crypto:eddsa:0.3.0'
 
+    implementation('com.github.square:kotlinpoet:1.6.0') { transitive = true }
     implementation('com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0') { transitive = true }
 
     testImplementation(
@@ -37,6 +37,7 @@ jar {
         configurations.default
                 .filter {
                     it.name.startsWith("better-parse")
+                    it.name.startsWith("kotlinpoet")
                 }
                 .collect {
                     it.isDirectory() ? it : zipTree(it)
