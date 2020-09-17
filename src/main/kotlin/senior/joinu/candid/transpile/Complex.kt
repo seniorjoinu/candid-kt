@@ -436,10 +436,8 @@ fun transpileService(name: ClassName?, type: IDLType.Reference.Service, context:
     type.methods.forEach { (methodName, methodType) ->
         val (methodClassName, _) = KtTranspiler.transpileTypeAndValueSer(methodType as IDLType, context)
 
-        val nameStr = if (methodName is IDLToken.TextVal) methodName.toString().substring(1, methodName.toString().length - 1) else methodName.toString()
-
-        val methodProp = PropertySpec.builder(nameStr, methodClassName)
-            .initializer("%T(\"$nameStr\", this)", methodClassName)
+        val methodProp = PropertySpec.builder(methodName.value, methodClassName)
+            .initializer("%T(\"${methodName.value}\", this)", methodClassName)
         actorClassBuilder.addProperty(methodProp.build())
     }
 
