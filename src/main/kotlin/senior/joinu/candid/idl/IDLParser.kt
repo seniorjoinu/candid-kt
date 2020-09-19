@@ -299,6 +299,6 @@ sealed class IDLToken {
     data class TextVal(override val value: String) : IDLToken(), IDLName {
         companion object { val pattern: String = Pattern.compile("\"[\\w._\\-\\\\/:]+\"", Pattern.UNICODE_CHARACTER_CLASS).pattern() }
 
-        override fun toString() = value
+        override fun toString() = "\"$value\""
     }
 }
