@@ -44,7 +44,7 @@ class IDLGrammarSpec : FreeSpec({
             row("initialize", emptyList(), emptyList())
         ).map { (methodName: String, arguments: List<IDLArgType>, results: List<IDLArgType>) ->
             val program = program(listOf(method(IDLType.Id(methodName), arguments, results)))
-            methodName {
+            "positive single service $methodName" {
                 IDLGrammar.parseToEnd(program.println().transpile().toString()) shouldBe program
             }
         }
@@ -62,7 +62,7 @@ class IDLGrammarSpec : FreeSpec({
                 IDLDef.Type("List_2", IDLType.Constructive.Opt(IDLType.Constructive.Record(listOf(fieldType(0, IDLType.Primitive.Text), fieldType(1, IDLType.Id("List_2")))))),
             )
             val program = program(listOf(method(IDLType.Id(methodName), arguments, results)), types)
-            methodName {
+            "positive single service with parameters $methodName" {
                 IDLGrammar.parseToEnd(program.println().transpile().toString()) shouldBe program
             }
         }
