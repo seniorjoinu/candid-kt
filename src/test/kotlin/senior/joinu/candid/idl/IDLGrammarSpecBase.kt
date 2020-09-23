@@ -57,14 +57,22 @@ fun function (
 
 fun service(methods: List<IDLMethod>) = IDLType.Reference.Service(methods)
 
+fun fieldType(idx: Int, type: IDLType): IDLFieldType {
+    return IDLFieldType(null, type, idx)
+}
+
+fun fieldType(name: String, type: IDLType): IDLFieldType {
+    return IDLFieldType(name, type, getIndex(name))
+}
+
 private fun getIndex(name: String): Int {
     val idx: Int?
     idx = if (containsPrefix(name)) {
         val value = stripPrefix(name)
         if (value.isEmpty()) 0 else value.toInt(16)
-    } else (
+    } else {
         name.toIntOrNull()
-        )
+    }
     return idx ?: idlHash(name)
 }
 
@@ -78,12 +86,4 @@ private fun stripPrefix(input: String): String {
     } else {
         input
     }
-}
-
-fun fieldType(idx: Int, type: IDLType?): IDLFieldType {
-    return IDLFieldType(null, type!!, idx)
-}
-
-fun fieldType(name: String, type: IDLType?): IDLFieldType {
-    return IDLFieldType(name, type!!, getIndex(name))
 }

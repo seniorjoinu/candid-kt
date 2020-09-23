@@ -18,7 +18,7 @@ class IDLGrammarSpec : FreeSpec({
             IDLDef.Type("my_type", IDLType.Primitive.Nat8),
             IDLDef.Type("List", IDLType.Constructive.Record(listOf(fieldType("head", IDLType.Primitive.Integer), fieldType("tail", IDLType.Constructive.Opt(IDLType.Id("List")))))),
             IDLDef.Type("f", function(listOf(IDLType.Id("List"), function(listOf(IDLType.Primitive.Int32.asArg()), listOf(IDLType.Primitive.Int64.asArg()))).map { it.asArg() }, listOf(IDLType.Constructive.Opt(IDLType.Id("List")).asArg()))),
-            IDLDef.Type("broker", service(listOf(method(IDLType.Id("find"), listOf(IDLArgType("name", IDLType.Primitive.Text)), listOf(IDLArgType(null, service(listOf(method(IDLType.Id("current"), emptyList(), listOf(IDLType.Primitive.Nat32.asArg())), method(IDLType.Id("up"), emptyList(), emptyList()))))))))),
+            IDLDef.Type("broker", service(listOf(method(IDLType.Id("find"), listOf(IDLArgType("name", IDLType.Primitive.Text)), listOf(service(listOf(method(IDLType.Id("current"), emptyList(), listOf(IDLType.Primitive.Nat32.asArg())), method(IDLType.Id("up"), emptyList(), emptyList()))).asArg()))))),
             IDLDef.Type("nested", IDLType.Constructive.Record(listOf(fieldType(0, IDLType.Primitive.Natural), fieldType(1, IDLType.Primitive.Natural), fieldType(2, IDLType.Constructive.Record(listOf(fieldType(0, IDLType.Primitive.Natural), fieldType(1, IDLType.Primitive.Nat8), fieldType("0x2a", IDLType.Primitive.Natural)))), fieldType(3, IDLType.Constructive.Variant(listOf(fieldType("0x2a", IDLType.Primitive.Null), fieldType("A", IDLType.Primitive.Null), fieldType("B", IDLType.Primitive.Null), fieldType("C", IDLType.Primitive.Null)))), fieldType("40", IDLType.Primitive.Natural), fieldType("42", IDLType.Primitive.Natural)))),
         )
         val methods = listOf(
@@ -91,9 +91,9 @@ class IDLGrammarSpec : FreeSpec({
             IDLDef.Type("Chat", IDLType.Constructive.Vec(IDLType.Id("Message"))),
         )
         val methods = listOf(
-            method(IDLToken.TextVal("addMessageAndReturnChat"), listOf(IDLArgType(null, IDLType.Id("Message"))), listOf(IDLArgType(null, IDLType.Id("Chat")))),
-            method(IDLToken.TextVal("getValue"), listOf(IDLArgType(null, IDLType.Id("Sign"))), listOf(IDLArgType(null, IDLType.Id("Value"))), listOf(IDLFuncAnn.Query)),
-            method(IDLToken.TextVal("returnChat"), emptyList(), listOf(IDLArgType(null, IDLType.Id("Chat"))), listOf(IDLFuncAnn.Query)),
+            method(IDLToken.TextVal("addMessageAndReturnChat"), listOf(IDLType.Id("Message").asArg()), listOf(IDLType.Id("Chat").asArg())),
+            method(IDLToken.TextVal("getValue"), listOf(IDLType.Id("Sign").asArg()), listOf(IDLType.Id("Value").asArg()), listOf(IDLFuncAnn.Query)),
+            method(IDLToken.TextVal("returnChat"), emptyList(), listOf(IDLType.Id("Chat").asArg()), listOf(IDLFuncAnn.Query)),
         )
         val program = program(methods, types)
         IDLGrammar.parseToEnd(program.println().transpile().toString()) shouldBe program
