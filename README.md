@@ -3,7 +3,7 @@
 [![](https://jitci.com/gh/seniorjoinu/candid-kt/svg?style=flat-square)](https://jitci.com/gh/seniorjoinu/candid-kt)
 [![Release](https://jitpack.io/v/seniorjoinu/candid-kt.svg?style=flat-square)](https://jitpack.io/#seniorjoinu/candid-kt)
 <img src="https://img.shields.io/badge/dfx-0.6.7-blue?style=flat-square"/>
-<img src="https://img.shields.io/badge/kotlin-1.4-blue?style=flat-square"/>
+<img src="https://img.shields.io/badge/kotlin-1.3-blue?style=flat-square"/>
 <img src="https://img.shields.io/badge/android-26+-blue?style=flat-square"/>
 
 ### Candid-kt
