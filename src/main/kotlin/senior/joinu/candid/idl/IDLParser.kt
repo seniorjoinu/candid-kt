@@ -244,14 +244,14 @@ object IDLGrammar : Grammar<IDLProgram>() {
             if (field.idx == -1) field.idx = idx
         }
 
-        IDLType.Constructive.Record(fields.sortedWith { t1, t2 -> (t1.idx.toUInt() - t2.idx.toUInt()).toInt() })
+        IDLType.Constructive.Record(fields.sortedWith(Comparator<IDLFieldType> { t1, t2 -> (t1.idx.toUInt() - t2.idx.toUInt()).toInt() }))
     }
     private val pVariant: Parser<IDLType.Constructive.Variant> by skip(tVariant) and pFieldTypeListBlock map { fields ->
         fields.forEachIndexed { idx, field ->
             if (field.idx == -1) field.idx = idx
         }
 
-        IDLType.Constructive.Variant(fields.sortedWith { t1, t2 -> (t1.idx.toUInt() - t2.idx.toUInt()).toInt() })
+        IDLType.Constructive.Variant(fields.sortedWith(Comparator<IDLFieldType> { t1, t2 -> (t1.idx.toUInt() - t2.idx.toUInt()).toInt() }))
     }
 
     // -----------------------------REFTYPE-------------------------------

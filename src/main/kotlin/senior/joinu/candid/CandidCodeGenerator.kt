@@ -27,7 +27,7 @@ object CandidCodeGenerator {
     fun generate(
         input: Source,
         file: File,
-        genPackage: String = "",
+        genPackage: String = ""
     ) {
         generateFor(input, genPackage).writeTo(file)
     }
@@ -35,14 +35,14 @@ object CandidCodeGenerator {
     fun generate(
         input: Source,
         file: Path,
-        genPackage: String = "",
+        genPackage: String = ""
     ) {
         generateFor(input, genPackage).writeTo(file)
     }
 
     fun generate(
         input: Source,
-        genPackage: String = "",
+        genPackage: String = ""
     ): String {
         val sb = StringBuilder()
         generateFor(input, genPackage).writeTo(sb)

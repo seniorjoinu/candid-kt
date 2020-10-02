@@ -65,7 +65,7 @@ data class AuthenticatedICRequest(
 data class RequestId(private val data: ByteArray) {
     companion object {
         fun fromHashedFields(hashedFields: List<Pair<ByteArray, ByteArray>>): RequestId {
-            val sorted = hashedFields.sortedWith { (k1, v1), (k2, v2) ->
+            val sorted = hashedFields.sortedWith(Comparator<Pair<ByteArray, ByteArray>> { (k1, v1), (k2, v2) ->
                 var result = 0
                 for (i in 0..k1.size) {
                     result = k1[i].toUByte().compareTo(k2[i].toUByte())
@@ -73,7 +73,7 @@ data class RequestId(private val data: ByteArray) {
                 }
 
                 result
-            }
+            })
             val concatenatedSize = sorted.map { it.first.size + it.second.size }.sum()
             val concatenatedBuf = ByteBuffer.allocate(concatenatedSize)
 

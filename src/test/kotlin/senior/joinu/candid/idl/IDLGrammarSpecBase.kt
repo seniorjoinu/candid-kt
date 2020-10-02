@@ -14,7 +14,7 @@ fun program(
     methods: List<IDLMethod>,
     types: List<IDLDef.Type> = emptyList(),
     imports: List<IDLDef.Import> = emptyList(),
-    serviceName: String? = null,
+    serviceName: String? = null
 ) = IDLProgram(
     imports = imports,
     types = types,
@@ -39,16 +39,16 @@ fun method(
     methodName: IDLName,
     arguments: List<IDLArgType> = emptyList(),
     results: List<IDLArgType> = emptyList(),
-    annotations: List<IDLFuncAnn> = emptyList(),
+    annotations: List<IDLFuncAnn> = emptyList()
 ) = IDLMethod (
     name = methodName,
     type = function(arguments, results, annotations)
 )
 
-fun function (
+fun function(
     arguments: List<IDLArgType> = emptyList(),
     results: List<IDLArgType> = emptyList(),
-    annotations: List<IDLFuncAnn> = emptyList(),
+    annotations: List<IDLFuncAnn> = emptyList()
 ) = IDLType.Reference.Func(
     arguments = arguments,
     results = results,
