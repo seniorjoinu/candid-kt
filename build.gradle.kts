@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.20"
     maven
     `project-report`
 }
@@ -20,17 +20,17 @@ dependencies {
     implementation("com.github.kittinunf.fuel:fuel-coroutines:2.2.3")
     implementation("com.github.square:kotlinpoet:1.6.0")
     implementation("commons-codec:commons-codec:1.15")
-    implementation("org.jetbrains.kotlin:kotlin-reflect") { version { strictly("1.3.72") } }
-    implementation("org.jetbrains.kotlin:kotlin-stdlib") { version { strictly("1.3.72") } }
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-common") { version { strictly("1.3.72") } }
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8") { version { strictly("1.3.72") } }
+    implementation("org.jetbrains.kotlin:kotlin-reflect") { version { strictly("1.4.20") } }
+    implementation("org.jetbrains.kotlin:kotlin-stdlib") { version { strictly("1.4.20") } }
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-common") { version { strictly("1.4.20") } }
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8") { version { strictly("1.4.20") } }
     implementation("net.i2p.crypto:eddsa:0.3.0")
 
     testImplementation("com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0")
     testImplementation("com.github.tschuchortdev:kotlin-compile-testing:1.2.9")
-    testImplementation("io.kotest:kotest-runner-junit5:4.2.5")
-    testImplementation("io.kotest:kotest-assertions-core:4.2.5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
+    testImplementation("io.kotest:kotest-assertions-core:4.3.2")
+    testImplementation("io.kotest:kotest-runner-junit5:4.3.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
 }
 
 tasks.test {
