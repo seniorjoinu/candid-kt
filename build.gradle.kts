@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.github.seniorjoinu"
-version = "0.1-SNAPSHOT"
+version = "0.1-rc25"
 
 repositories {
     mavenCentral()
