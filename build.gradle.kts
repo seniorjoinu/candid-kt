@@ -5,12 +5,11 @@ plugins {
 }
 
 group = "com.github.seniorjoinu"
-version = "0.1-rc25"
+version = "0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
     maven { setUrl("https://jitpack.io") }
-    maven { setUrl("https://dl.bintray.com/hotkeytlt/maven") }
 }
 
 dependencies {
