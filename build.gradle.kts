@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version embeddedKotlinVersion
+    `maven`
     `maven-publish`
     `project-report`
 }
